@@ -114,107 +114,110 @@ bool Netlist::vertexEqual(const VertexDesc a,
          graph[a].deleted == graph[b].deleted;
 }
 
-/// Simplistic but fast implementation of the GraphViz file parser.
-bool Netlist::parseGraphViz(std::istream &in) {
-  std::string line;
-  while (std::getline(in, line)) {
-    auto openBracePos = line.find_first_of('[');
-    auto closeBracePos = line.find_last_of(']');
-    // Declaration
-    if (line.find("digraph") != std::string::npos &&
-        boost::num_vertices(graph) == 0) {
-      std::vector<std::string> tokens;
-      boost::trim_if(line, boost::is_any_of(" \t"));
-      boost::split(tokens, line,
-                   boost::is_any_of(" \t;"),
-                   boost::token_compress_on);
-      topName.assign(tokens[1]);
-    // Edges
-    } else if (line.find("->") != std::string::npos) {
-      std::vector<std::string> tokens;
-      boost::trim_if(line, boost::is_any_of(" \t"));
-      boost::split(tokens, line,
-                   boost::is_any_of(" \t;"),
-                   boost::token_compress_on);
-      auto src = static_cast<VertexDesc>(std::stoull(tokens[0].substr(1)));
-      auto dst = static_cast<VertexDesc>(std::stoull(tokens[2].substr(1)));
-      boost::add_edge(src, dst, graph);
-    // Vertices
-    } else if (openBracePos != std::string::npos &&
-               closeBracePos != std::string::npos) {
-      auto v = boost::add_vertex(graph);
-      auto nPos = line.find_first_of('n');
-      std::string vertex = line.substr(nPos+1,
-                                       openBracePos-nPos-1);
-      auto vertexNumber = std::stoull(vertex);
-      // Sanity check the format/ordering of the file.
-      assert(boost::num_vertices(graph) == vertexNumber+1);
-      assert(boost::num_edges(graph) == 0);
-      std::string attributes = line.substr(openBracePos+1,
-                                           closeBracePos-openBracePos-1);
-      // Attributes.
-      using tokenizer = boost::tokenizer<boost::escaped_list_separator<char>>;
-      tokenizer tokens(attributes,
-                       boost::escaped_list_separator<char>("\\", ",", "\""));
-      for (auto &token : tokens) {
-        // Get Key.
-        auto equalsPos = token.find_first_of('=');
-        auto key = token.substr(0, equalsPos);
-        boost::trim_if(key, boost::is_any_of(" \t"));
-        // Get value.
-        auto quoteFirstPos = token.find_first_of('"');
-        auto quoteLastPos = token.find_last_of('"');
-        std::string value;
-        if (quoteFirstPos != std::string::npos &&
-            quoteLastPos != std::string::npos) {
-          value = token.substr(quoteFirstPos+1, quoteLastPos-quoteFirstPos-1);
-        } else {
-          value = token.substr(equalsPos+1);
-        }
-        // Set the graph attribute.
-        if (key == "id") {
-          auto idNumber = std::stoull(value);
-          assert(vertexNumber == idNumber);
-          graph[v].id = idNumber;
-        } else if (key == "type") {
-          graph[v].type = boost::lexical_cast<VertexType>(value);
-        } else if (key == "dir") {
-          graph[v].dir = boost::lexical_cast<VertexDirection>(value);
-        } else if (key == "width") {
-          graph[v].width = std::stoul(value);
-        } else if (key == "name") {
-          // Top level ports can appear with and without heirarchical paths,
-          // canonicalise their path to merge these vertices as duplicates.
-          graph[v].name.assign(expandName(topName, value));
-        } else if (key == "loc") {
-          graph[v].loc.assign(value);
-        }
-      }
-    }
-  }
-  return true;
-}
+///// Simplistic but fast implementation of the GraphViz file parser.
+//bool Netlist::parseGraphViz(std::istream &in) {
+//  std::string line;
+//  while (std::getline(in, line)) {
+//    auto openBracePos = line.find_first_of('[');
+//    auto closeBracePos = line.find_last_of(']');
+//    // Declaration
+//    if (line.find("digraph") != std::string::npos &&
+//        boost::num_vertices(graph) == 0) {
+//      std::vector<std::string> tokens;
+//      boost::trim_if(line, boost::is_any_of(" \t"));
+//      boost::split(tokens, line,
+//                   boost::is_any_of(" \t;"),
+//                   boost::token_compress_on);
+//      topName.assign(tokens[1]);
+//    // Edges
+//    } else if (line.find("->") != std::string::npos) {
+//      std::vector<std::string> tokens;
+//      boost::trim_if(line, boost::is_any_of(" \t"));
+//      boost::split(tokens, line,
+//                   boost::is_any_of(" \t;"),
+//                   boost::token_compress_on);
+//      auto src = static_cast<VertexDesc>(std::stoull(tokens[0].substr(1)));
+//      auto dst = static_cast<VertexDesc>(std::stoull(tokens[2].substr(1)));
+//      boost::add_edge(src, dst, graph);
+//    // Vertices
+//    } else if (openBracePos != std::string::npos &&
+//               closeBracePos != std::string::npos) {
+//      auto v = boost::add_vertex(graph);
+//      auto nPos = line.find_first_of('n');
+//      std::string vertex = line.substr(nPos+1,
+//                                       openBracePos-nPos-1);
+//      auto vertexNumber = std::stoull(vertex);
+//      // Sanity check the format/ordering of the file.
+//      assert(boost::num_vertices(graph) == vertexNumber+1);
+//      assert(boost::num_edges(graph) == 0);
+//      std::string attributes = line.substr(openBracePos+1,
+//                                           closeBracePos-openBracePos-1);
+//      // Attributes.
+//      using tokenizer = boost::tokenizer<boost::escaped_list_separator<char>>;
+//      tokenizer tokens(attributes,
+//                       boost::escaped_list_separator<char>("\\", ",", "\""));
+//      for (auto &token : tokens) {
+//        // Get Key.
+//        auto equalsPos = token.find_first_of('=');
+//        auto key = token.substr(0, equalsPos);
+//        boost::trim_if(key, boost::is_any_of(" \t"));
+//        // Get value.
+//        auto quoteFirstPos = token.find_first_of('"');
+//        auto quoteLastPos = token.find_last_of('"');
+//        std::string value;
+//        if (quoteFirstPos != std::string::npos &&
+//            quoteLastPos != std::string::npos) {
+//          value = token.substr(quoteFirstPos+1, quoteLastPos-quoteFirstPos-1);
+//        } else {
+//          value = token.substr(equalsPos+1);
+//        }
+//        // Set the graph attribute.
+//        if (key == "id") {
+//          auto idNumber = std::stoull(value);
+//          assert(vertexNumber == idNumber);
+//          graph[v].id = idNumber;
+//        } else if (key == "type") {
+//          graph[v].type = boost::lexical_cast<VertexType>(value);
+//        } else if (key == "dir") {
+//          graph[v].dir = boost::lexical_cast<VertexDirection>(value);
+//        } else if (key == "width") {
+//          graph[v].width = std::stoul(value);
+//        } else if (key == "name") {
+//          // Top level ports can appear with and without heirarchical paths,
+//          // canonicalise their path to merge these vertices as duplicates.
+//          graph[v].name.assign(expandName(topName, value));
+//        } else if (key == "loc") {
+//          graph[v].loc.assign(value);
+//        }
+//      }
+//    }
+//  }
+//  return true;
+//}
 
 /// Parse a graph input file and return a list of Vertices and a list of Edges.
 void Netlist::parseFile(const std::string &filename) {
   INFO(std::cout << "Parsing input file\n");
-  std::fstream infile(filename);
-  if (!infile.is_open()) {
-    throw Exception("could not open file");
-  }
-  if (netlist_paths::options.boostParser) {
-    // FIXME: this does not set topName from the digraph declaration.
-    if (!boost::read_graphviz(infile, graph, dp))
-      throw Exception(std::string("reading graph file: ")+filename);
-  } else {
-    if (!parseGraphViz(infile))
-      throw Exception(std::string("reading graph file: ")+filename);
-  }
-  // Initialse other attributes.
-  BGL_FORALL_VERTICES(v, graph, Graph) {
-    graph[v].deleted = false;
-    graph[v].isTop = netlist_paths::determineIsTop(graph[v].name);
-  }
+  //std::fstream infile(filename);
+  //if (!infile.is_open()) {
+  //  throw Exception("could not open file");
+  //}
+  //if (netlist_paths::options.boostParser) {
+  //  // FIXME: this does not set topName from the digraph declaration.
+  //  if (!boost::read_graphviz(infile, graph, dp))
+  //    throw Exception(std::string("reading graph file: ")+filename);
+  //} else {
+  //  if (!parseGraphViz(infile))
+  //    throw Exception(std::string("reading graph file: ")+filename);
+  //}
+  //if (!parseVerilatorXML(infile)) {
+  //  throw Exception(std::string("reading XML netlist file: ")+filename);
+  //}
+  //// Initialse other attributes.
+  //BGL_FORALL_VERTICES(v, graph, Graph) {
+  //  graph[v].deleted = false;
+  //  graph[v].isTop = netlist_paths::determineIsTop(graph[v].name);
+  //}
   INFO(std::cout << "Netlist contains " << boost::num_vertices(graph)
                  << " vertices and " << boost::num_edges(graph)
                  << " edges\n");

@@ -11,6 +11,7 @@
 #include "netlist_paths/Exception.hpp"
 #include "netlist_paths/Options.hpp"
 #include "netlist_paths/Debug.hpp"
+#include "netlist_paths/ReadVerilatorXML.hpp"
 
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
@@ -113,12 +114,14 @@ int main(int argc, char **argv) {
                               outputFilename);
     }
 
-    netlist_paths::Netlist netlist;
-
     // Parse the input file.
-    if (inputFiles.size() > 1)
-      throw netlist_paths::Exception("multiple graph files specified");
-    netlist.parseFile(inputFiles.front());
+    if (inputFiles.size() > 1) {
+      throw netlist_paths::Exception("multiple XML files specified");
+    }
+    netlist_paths::Netlist netlist =
+            netlist_paths::ReadVerilatorXML().readXML(inputFiles.front());
+    return 0; // TEMPORARY EARLY EXIT
+    //netlist.parseFile(inputFiles.front());
     netlist.mergeDuplicateVertices();
     netlist.checkGraph();
 

@@ -42,7 +42,8 @@ private:
 
 public:
   Netlist();
-  bool parseGraphViz(std::istream &in);
+  //bool parseVerilatorXML(std::istream &in);
+  //bool parseGraphViz(std::istream &in);
   void parseFile(const std::string &filename);
   void mergeDuplicateVertices();
   void checkGraph() const;
