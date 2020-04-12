@@ -45,6 +45,22 @@ public:
   //bool parseVerilatorXML(std::istream &in);
   //bool parseGraphViz(std::istream &in);
   void parseFile(const std::string &filename);
+  VertexDesc addVertex(VertexType type, const std::string &name) {
+    auto vertex = boost::add_vertex(graph);
+    graph[vertex].id = static_cast<unsigned long long>(vertex);
+    graph[vertex].type = type;
+    graph[vertex].name.assign(name);
+    // Old fields.
+    graph[vertex].dir = VertexDirection::NONE;
+    graph[vertex].width = 0;
+    graph[vertex].loc.assign("none");
+    graph[vertex].isTop = false;
+    graph[vertex].deleted = false;
+    return vertex;
+  }
+  void addEdge(VertexDesc src, VertexDesc dst) {
+    boost::add_edge(src, dst, graph);
+  }
   void mergeDuplicateVertices();
   void checkGraph() const;
   void dumpDotFile(const std::string &outputFilename) const;
@@ -91,7 +107,9 @@ public:
   }
   std::size_t numWaypoints() const { return waypoints.size(); }
   void clearWaypoints() { waypoints.clear(); }
-  const std::string &getVertexName(VertexDesc vertex) const { return graph[vertex].name; }
+  const std::string &getVertexName(VertexDesc vertex) const {
+    return graph[vertex].name;
+  }
   bool startpointExists(const std::string &name) const noexcept {
     return getStartVertex(name) != boost::graph_traits<Graph>::null_vertex();
   }

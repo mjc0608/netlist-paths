@@ -321,8 +321,22 @@ void Netlist::dumpDotFile(const std::string &outputFilename) const {
   if (!outputFile.is_open()) {
     throw Exception(std::string("unable to open ")+outputFilename);
   }
-  // Write graphviz format.
-  boost::write_graphviz_dp(outputFile, graph, dp, /*node_id=*/"name");
+//  // Write graphviz format.
+//  boost::write_graphviz_dp(outputFile, graph, dp, /*node_id=*/"id");
+  // Loop over all vertices and print properties.
+  outputFile << "digraph netlist {\n";
+  BGL_FORALL_VERTICES(v, graph, Graph) {
+    outputFile << v << " [id="<<graph[v].id
+       <<" name=\""<<graph[v].name << "\""
+       <<" type=\""<<boost::lexical_cast<std::string>(graph[v].type) << "\""
+       <<"]\n";
+  }
+  // Loop over all edges.
+  BGL_FORALL_EDGES(e, graph, Graph) {
+    outputFile << boost::source(e, graph) << " -> "
+               << boost::target(e, graph) << ";\n";
+  }
+  outputFile << "}\n";
   outputFile.close();
   // Print command line to generate graph file.
   INFO(std::cout << "dot -Tpdf " << outputFilename << " -o graph.pdf\n");

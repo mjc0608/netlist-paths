@@ -11,7 +11,8 @@ namespace netlist_paths {
 enum VertexType {
   LOGIC,
   ASSIGN,
-  ASSIGNW,
+  ASSIGN_DLY,
+  ASSIGN_W,
   ALWAYS,
   INITIAL,
   REG_SRC,
@@ -19,7 +20,7 @@ enum VertexType {
   VAR,
   WIRE,
   PORT,
-  CFUNC
+  C_FUNC
 };
 
 enum VertexDirection {
@@ -68,7 +69,8 @@ inline bool isSrcReg(const VertexProperties &p) {
 inline bool isLogic(const VertexProperties &p) {
   return p.type == VertexType::LOGIC ||
          p.type == VertexType::ASSIGN ||
-         p.type == VertexType::ASSIGNW ||
+         p.type == VertexType::ASSIGN_DLY ||
+         p.type == VertexType::ASSIGN_W ||
          p.type == VertexType::ALWAYS ||
          p.type == VertexType::INITIAL;
 }
@@ -108,17 +110,18 @@ inline bool canIgnore(const VertexProperties &p) {
 }
 
 inline VertexType getVertexType(const std::string &type) {
-       if (type == "LOGIC")   return VertexType::LOGIC;
-  else if (type == "ASSIGN")  return VertexType::ASSIGN;
-  else if (type == "ASSIGNW") return VertexType::ASSIGNW;
-  else if (type == "ALWAYS")  return VertexType::ALWAYS;
-  else if (type == "INITIAL") return VertexType::INITIAL;
-  else if (type == "REG_SRC") return VertexType::REG_SRC;
-  else if (type == "REG_DST") return VertexType::REG_DST;
-  else if (type == "VAR")     return VertexType::VAR;
-  else if (type == "WIRE")    return VertexType::WIRE;
-  else if (type == "PORT")    return VertexType::PORT;
-  else if (type == "CFUNC")   return VertexType::CFUNC;
+       if (type == "LOGIC")      return VertexType::LOGIC;
+  else if (type == "ASSIGN")     return VertexType::ASSIGN;
+  else if (type == "ASSIGN_DLY") return VertexType::ASSIGN_DLY;
+  else if (type == "ASSIGN_W")   return VertexType::ASSIGN_W;
+  else if (type == "ALWAYS")     return VertexType::ALWAYS;
+  else if (type == "INITIAL")    return VertexType::INITIAL;
+  else if (type == "REG_SRC")    return VertexType::REG_SRC;
+  else if (type == "REG_DST")    return VertexType::REG_DST;
+  else if (type == "VAR")        return VertexType::VAR;
+  else if (type == "WIRE")       return VertexType::WIRE;
+  else if (type == "PORT")       return VertexType::PORT;
+  else if (type == "C_FUNC")     return VertexType::C_FUNC;
   else {
     throw Exception(std::string("unexpected vertex type: ")+type);
   }
@@ -126,18 +129,19 @@ inline VertexType getVertexType(const std::string &type) {
 
 inline const char *getVertexTypeStr(VertexType type) {
   switch (type) {
-    case VertexType::LOGIC:   return "LOGIC";
-    case VertexType::ASSIGN:  return "ASSIGN";
-    case VertexType::ASSIGNW: return "ASSIGNW";
-    case VertexType::ALWAYS:  return "ALWAYS";
-    case VertexType::INITIAL: return "INITIAL";
-    case VertexType::REG_SRC: return "REG_SRC";
-    case VertexType::REG_DST: return "REG_DST";
-    case VertexType::VAR:     return "VAR";
-    case VertexType::WIRE:    return "WIRE";
-    case VertexType::PORT:    return "PORT";
-    case VertexType::CFUNC:   return "CFUNC";
-    default:                  return "UNKNOWN";
+    case VertexType::LOGIC:      return "LOGIC";
+    case VertexType::ASSIGN:     return "ASSIGN";
+    case VertexType::ASSIGN_DLY: return "ASSIGN_DLY";
+    case VertexType::ASSIGN_W:   return "ASSIGN_W";
+    case VertexType::ALWAYS:     return "ALWAYS";
+    case VertexType::INITIAL:    return "INITIAL";
+    case VertexType::REG_SRC:    return "REG_SRC";
+    case VertexType::REG_DST:    return "REG_DST";
+    case VertexType::VAR:        return "VAR";
+    case VertexType::WIRE:       return "WIRE";
+    case VertexType::PORT:       return "PORT";
+    case VertexType::C_FUNC:     return "C_FUNC";
+    default:                     return "UNKNOWN";
   }
 }
 

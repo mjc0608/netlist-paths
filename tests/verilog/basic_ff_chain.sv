@@ -9,7 +9,7 @@ module basic_ff_chain
   always_ff @* begin
     a <= in;
     b <= a;
-    out <= b;
+    out = b;
   end
 endmodule
 

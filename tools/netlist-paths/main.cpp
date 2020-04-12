@@ -118,20 +118,21 @@ int main(int argc, char **argv) {
     if (inputFiles.size() > 1) {
       throw netlist_paths::Exception("multiple XML files specified");
     }
-    netlist_paths::Netlist netlist =
-            netlist_paths::ReadVerilatorXML().readXML(inputFiles.front());
-    return 0; // TEMPORARY EARLY EXIT
-    //netlist.parseFile(inputFiles.front());
-    netlist.mergeDuplicateVertices();
-    netlist.checkGraph();
+    auto vlXMLReader = netlist_paths::ReadVerilatorXML();
+    auto &netlist = vlXMLReader.readXML(inputFiles.front());
+//    netlist.mergeDuplicateVertices();
+//    netlist.checkGraph();
 
     // Dump dot file.
     if (netlist_paths::options.dumpDotfile) {
-      if (outputFilename == netlist_paths::DEFAULT_OUTPUT_FILENAME)
+      if (outputFilename == netlist_paths::DEFAULT_OUTPUT_FILENAME) {
          outputFilename += ".dot";
+      }
       netlist.dumpDotFile(outputFilename);
       return 0;
     }
+
+    return 0; // TEMPORARY EARLY EXIT
 
     // Dump netlist names.
     if (netlist_paths::options.dumpNames) {
