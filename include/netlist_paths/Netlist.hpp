@@ -45,17 +45,17 @@ public:
   //bool parseVerilatorXML(std::istream &in);
   //bool parseGraphViz(std::istream &in);
   void parseFile(const std::string &filename);
+  VertexDesc addVertex(VertexType type) {
+    auto vertex = boost::add_vertex(graph);
+    graph[vertex].id = static_cast<unsigned long long>(vertex);
+    graph[vertex].type = type;
+    return vertex;
+  }
   VertexDesc addVertex(VertexType type, const std::string &name) {
     auto vertex = boost::add_vertex(graph);
     graph[vertex].id = static_cast<unsigned long long>(vertex);
     graph[vertex].type = type;
     graph[vertex].name.assign(name);
-    // Old fields.
-    graph[vertex].dir = VertexDirection::NONE;
-    graph[vertex].width = 0;
-    graph[vertex].loc.assign("none");
-    graph[vertex].isTop = false;
-    graph[vertex].deleted = false;
     return vertex;
   }
   void addEdge(VertexDesc src, VertexDesc dst) {

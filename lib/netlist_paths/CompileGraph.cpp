@@ -29,18 +29,25 @@ int CompileGraph::run(const std::vector<std::string> &includes,
                       const std::vector<std::string> &inputFiles,
                       const std::string &outputFile) const {
   std::vector<std::string> args{"+1800-2012ext+.sv",
-                                "--dump-netlist-graph",
+                                "--bbox-sys",
+                                "--bbox-unsup",
+                                "--xml-only",
+                                "--xml-flat",
                                 "--error-limit", "10000",
-                                "-o", outputFile};
-  for (auto &path : includes)
+                                "--xml-output", outputFile};
+  for (auto &path : includes) {
     args.push_back(std::string("+incdir+")+path);
-  for (auto &define : defines)
+  }
+  for (auto &define : defines) {
     args.push_back(std::string("-D")+define);
-  for (auto &path : inputFiles)
+  }
+  for (auto &path : inputFiles) {
     args.push_back(path);
+  }
   std::stringstream ss;
-  for (auto &arg : args)
+  for (auto &arg : args) {
     ss << arg << " ";
+  }
   INFO(std::cout << "Running: " << verilatorExe << " " << ss.str() << "\n");
   return bp::system(verilatorExe, bp::args(args));
 }

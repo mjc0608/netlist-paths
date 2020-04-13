@@ -13,6 +13,7 @@ void ReadVerilatorXML::dispatchVisitor(XMLNode *node) {
   switch (resolveNode(node->name())) {
   case AstNode::ALWAYS:        visitAlways(node);    break;
   case AstNode::ALWAYS_PUBLIC: visitAlways(node);    break;
+  case AstNode::ASSIGN:        visitAssign(node);    break;
   case AstNode::ASSIGN_ALIAS:  visitAssign(node);    break;
   case AstNode::ASSIGN_DLY:    visitAssignDly(node); break;
   case AstNode::ASSIGN_W:      visitAssign(node);    break;
@@ -50,37 +51,36 @@ void ReadVerilatorXML::iterateChildren(XMLNode *node) {
 void ReadVerilatorXML::newScope(XMLNode *node) {
   std::cout << "New scope\n";
   scopeParents.push(std::move(currentScope));
-  if (currentScope) {
-    currentScope = std::make_unique<ScopeNode>(node, *currentScope);
-  } else {
-    currentScope = std::make_unique<ScopeNode>(node);
-  }
+  currentScope = std::make_unique<ScopeNode>(node);
   iterateChildren(node);
   currentScope = std::move(scopeParents.top());
   scopeParents.pop();
 }
 
+void ReadVerilatorXML::newVarScope(XMLNode *node) {
+  assert(numChildren(node) == 0 && "varscope has children");
+  // Add this <varscope> to the current scope.
+  auto vertex = netlist->addVertex(VertexType::VAR);
+  currentScope->addVarScope(node, vertex);
+}
+
 void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
+  std::cout << "newStatement: " << getVertexTypeStr(vertexType) << "\n";
   // A statment must have a scope for variable references to occur in.
-  std::cout << "newStatement\n";
   if (currentScope) {
     logicParents.push(std::move(currentLogic));
-    currentLogic = std::make_unique<LogicNode>(node, *currentScope);
-    // VERTICES: currentlogic.getVars()
-    // EDGES: logicParents.top().getVars() -> currentLogic.getVars()
-    for (XMLNode *varScope : currentScope->getVarScopes()) {
-      auto varName = varScope->first_attribute("name")->value();
-      // Create a vertex.
-      auto vertex = netlist->addVertex(vertexType, varName);
-      currentLogic->addVertex(varName, vertex);
-      // Create an edge from the parent logic to this one.
-      if (logicParents.top()) {
-        auto vertexParent = logicParents.top()->lookupVertex(varName);
-        netlist->addEdge(vertexParent, vertex);
-        std::cout << "Edge from parent logic to logic for " << varName << "\n";
-      }
+    // Create a vertex for this logic.
+    auto vertex = netlist->addVertex(vertexType);
+    currentLogic = std::make_unique<LogicNode>(node, *currentScope, vertex);
+    // Create an edge from the parent logic to this one.
+    if (logicParents.top()) {
+      auto vertexParent = logicParents.top()->getVertex();
+      netlist->addEdge(vertexParent, vertex);
+      std::cout << "Edge from parent logic to "
+                << getVertexTypeStr(vertexType) << "\n";
     }
     if (vertexType == VertexType::ASSIGN ||
+        vertexType == VertexType::ASSIGN_ALIAS ||
         vertexType == VertexType::ASSIGN_DLY ||
         vertexType == VertexType::ASSIGN_W) {
       // Handle assignments to distinguish L and R values.
@@ -104,39 +104,30 @@ void ReadVerilatorXML::newVarRef(XMLNode *node) {
       auto name = std::string(node->first_attribute("name")->value());
       throw Exception(std::string("var ")+name+" not under a logic block");
     }
-    if (!currentScope->hasVarScope(node)) {
-      auto name = std::string(node->first_attribute("name")->value());
-      throw Exception(std::string("var ")+name+" does not have a VAR_SCOPE");
-    }
     auto varName = node->first_attribute("name")->value();
+    auto varScopeVertex = currentScope->lookupVarVertex(varName);
+    if (varScopeVertex == boost::graph_traits<Graph>::null_vertex()) {
+      throw Exception(std::string("var ")+varName+" does not have a VAR_SCOPE");
+    }
     //auto varDTypeID = std::stoul(node->first_attribute("dtype_id")->value());
     //auto varFileLine = node->first_attribute("fl")->value();
     //auto varLocation = node->first_attribute("loc")->value();
     if (isLValue) {
       // Assignment to var
       if (isDelayedAssign) {
-        // VERTEX: reg
-        // EDGE: currentLogic.getVars() this var -> reg
-        auto vertex = netlist->addVertex(VertexType::REG_DST, varName);
-        auto vertexParent = currentLogic->lookupVertex(varName);
-        netlist->addEdge(vertexParent, vertex);
-        std::cout << "Edge from logic to reg " << varName << "\n";
+        // Var is reg l-value.
+        // TODO: set varscope to REG
+        netlist->addEdge(currentLogic->getVertex(), varScopeVertex);
+        std::cout << "Edge from logic to reg '" << varName << "'\n";
       } else {
-        // VERTEX: var
-        // EDGE: currentLogic.getVars() this var -> varref
-        auto vertex = netlist->addVertex(VertexType::VAR, varName);
-        auto vertexParent = currentLogic->lookupVertex(varName);
-        netlist->addEdge(vertexParent, vertex);
-        std::cout << "Edge from logic to var" << varName << "\n";
+        // Var is wire l-value.
+        netlist->addEdge(currentLogic->getVertex(), varScopeVertex);
+        std::cout << "Edge from logic to var '" << varName << "'\n";
       }
     } else {
       // Var is wire r-value.
-      // VERTEX: var
-      // EDGE: varref -> currentLogic.getVars() this var
-      auto vertex = netlist->addVertex(VertexType::VAR, varName);
-      auto vertexParent = currentLogic->lookupVertex(varName);
-      netlist->addEdge(vertex, vertexParent);
-      std::cout << "Edge from var " << varName << " to logic\n";
+      netlist->addEdge(varScopeVertex, currentLogic->getVertex());
+      std::cout << "Edge from var '" << varName << "' to logic\n";
     }
     iterateChildren(node);
   }
@@ -203,9 +194,7 @@ void ReadVerilatorXML::visitVar(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitVarScope(XMLNode *node) {
-  assert(numChildren(node) == 0 && "varscope has children");
-  // Add this <varscope> to the current scope.
-  currentScope->addVarScope(node);
+  newVarScope(node);
 }
 
 void ReadVerilatorXML::visitVarRef(XMLNode *node) {

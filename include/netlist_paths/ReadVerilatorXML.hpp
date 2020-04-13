@@ -17,6 +17,7 @@ using XMLNode = rapidxml::xml_node<>;
 enum class AstNode {
   ALWAYS,
   ALWAYS_PUBLIC,
+  ASSIGN,
   ASSIGN_ALIAS,
   ASSIGN_DLY,
   ASSIGN_W,
@@ -44,6 +45,7 @@ static AstNode resolveNode(const char *name) {
       { "assignalias",  AstNode::ASSIGN_ALIAS },
       { "assigndly",    AstNode::ASSIGN_DLY },
       { "assignw",      AstNode::ASSIGN_W },
+      { "assign",       AstNode::ASSIGN },
       { "basicdtype",   AstNode::BASIC_DTYPE },
       { "cfunc",        AstNode::C_FUNC },
       { "contassign",   AstNode::CONT_ASSIGN },
@@ -62,70 +64,53 @@ static AstNode resolveNode(const char *name) {
   return (it != mappings.end()) ? it->second : AstNode::INVALID;
 }
 
+class VarScopeNode {
+  XMLNode *node;
+  std::string name;
+  VertexDesc vertex;
+public:
+  VarScopeNode(XMLNode *node, VertexDesc vertex) :
+      node(node), name(node->first_attribute("name")->value()), vertex(vertex) {}
+  XMLNode *getNode() { return node; }
+  std::string &getName() { return name; }
+  VertexDesc getVertex() { return vertex; }
+};
+
 class ScopeNode {
   XMLNode *node;
-  std::vector<XMLNode*> varScopes;
+  std::vector<std::unique_ptr<VarScopeNode>> vars;
 
 public:
   ScopeNode(XMLNode *node) : node(node) {}
-  ScopeNode(XMLNode *node, ScopeNode &parentScope) : node(node) {
-    // Copy the variables from the parent scope into this one.
-    varScopes.insert(std::begin(varScopes),
-                     std::begin(parentScope.getVarScopes()),
-                     std::end(parentScope.getVarScopes()));
-  }
-  /// Check a VAR_REF has a corresponding VAR_SCOPE declaration.
-  bool hasVarScope(XMLNode *varRefNode) {
-    assert(resolveNode(varRefNode->name()) == AstNode::VAR_REF &&
-           "invalid node, expecting VAR_REF");
-    // Check the var ref is a suffix of a VAR_SCOPE.
-    // (This is simplistic and should be improved.)
-    auto varRefName = varRefNode->first_attribute("name")->value();
-    auto it = std::find_if(std::begin(varScopes),
-                           std::end(varScopes),
-                           [&](const XMLNode *n) {
-                             return boost::algorithm::ends_with(n->first_attribute("name")->value(),
-                                                                varRefName); } );
-    return it != std::end(varScopes);
-  }
   /// Add a VAR_SCOPE.
-  void addVarScope(XMLNode *varScopeNode) {
+  void addVarScope(XMLNode *varScopeNode, VertexDesc vertex) {
     assert(resolveNode(varScopeNode->name()) == AstNode::VAR_SCOPE &&
            "invalid node, expecting VAR_SCOPE");
-    varScopes.push_back(varScopeNode);
-    //std::cout << "Add var " << varScopeNode->first_attribute("name")->value()<<" to scope\n";
+    vars.push_back(std::make_unique<VarScopeNode>(varScopeNode, vertex));
+    std::cout << "Add var '" << varScopeNode->first_attribute("name")->value()<<"' to scope\n";
   }
-  const std::vector<XMLNode*> getVarScopes() const { return varScopes; }
+  VertexDesc lookupVarVertex(const std::string &name) {
+    // Check the var ref is a suffix of a VAR_SCOPE.
+    // (This is simplistic and should be improved.)
+    auto equals = [&name](const std::unique_ptr<VarScopeNode> &node) {
+        return boost::algorithm::ends_with(node->getName(), name); };
+    auto it = std::find_if(std::begin(vars), std::end(vars), equals);
+    return (it != std::end(vars)) ? (*it)->getVertex()
+                                  : boost::graph_traits<Graph>::null_vertex();
+  }
+  XMLNode *getNode() { return node; }
 };
 
 class LogicNode {
   XMLNode *node;
   ScopeNode &scope;
-  std::vector<std::pair<std::string, VertexDesc>> vertices;
   VertexDesc vertex;
 public:
-  LogicNode(XMLNode *node, ScopeNode &scope) : node(node), scope(scope) {}
-  /// Record a vertex in the Netlist graph.
-  void addVertex(const std::string &name, VertexDesc vertexDesc) {
-    vertices.push_back(std::make_pair(name, vertexDesc));
-    //std::cout << "Add logic vertex for var " << name << "\n";
-    vertex = vertexDesc;
-  }
-  /// Return the vertex associated with the variable name.
-  VertexDesc lookupVertex(const std::string &name) {
-    auto it = std::find_if(std::begin(vertices),
-                           std::end(vertices),
-                           [&name](const std::pair<std::string, VertexDesc> &element) {
-                             return boost::algorithm::ends_with(element.first,
-                                                                name); } );
-    if (it != std::end(vertices)) {
-      return it->second;
-    } else {
-      return boost::graph_traits<Graph>::null_vertex();
-    }
-  }
+  LogicNode(XMLNode *node, ScopeNode &scope, VertexDesc vertex) :
+      node(node), scope(scope), vertex(vertex) {}
+  XMLNode *getNode() { return node; }
+  ScopeNode &getScope() { return scope; }
   VertexDesc getVertex() { return vertex; }
-  const std::vector<XMLNode*> getVarScopes() const { return scope.getVarScopes(); }
 };
 
 class ReadVerilatorXML {
@@ -142,6 +127,7 @@ private:
   void dispatchVisitor(XMLNode *node);
   void iterateChildren(XMLNode *node);
   void newScope(XMLNode *node);
+  void newVarScope(XMLNode *node);
   void newStatement(XMLNode *node, VertexType);
   void newVarRef(XMLNode *node);
   void visitNode(XMLNode *node);
