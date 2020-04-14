@@ -41,7 +41,6 @@ std::size_t ReadVerilatorXML::numChildren(XMLNode *node) {
 }
 
 void ReadVerilatorXML::iterateChildren(XMLNode *node) {
-  std::cout << node->name() << "\n";
   for (XMLNode *child = node->first_node();
        child; child = child->next_sibling()) {
     dispatchVisitor(child);
@@ -49,7 +48,7 @@ void ReadVerilatorXML::iterateChildren(XMLNode *node) {
 }
 
 void ReadVerilatorXML::newScope(XMLNode *node) {
-  std::cout << "New scope\n";
+  DEBUG(std::cout << "New scope\n");
   scopeParents.push(std::move(currentScope));
   currentScope = std::make_unique<ScopeNode>(node);
   iterateChildren(node);
@@ -65,7 +64,7 @@ void ReadVerilatorXML::newVarScope(XMLNode *node) {
 }
 
 void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
-  std::cout << "newStatement: " << getVertexTypeStr(vertexType) << "\n";
+  DEBUG(std::cout << "New statement: " << getVertexTypeStr(vertexType) << "\n");
   // A statment must have a scope for variable references to occur in.
   if (currentScope) {
     logicParents.push(std::move(currentLogic));
@@ -76,8 +75,8 @@ void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
     if (logicParents.top()) {
       auto vertexParent = logicParents.top()->getVertex();
       netlist->addEdge(vertexParent, vertex);
-      std::cout << "Edge from parent logic to "
-                << getVertexTypeStr(vertexType) << "\n";
+      DEBUG(std::cout << "Edge from parent logic to "
+                      << getVertexTypeStr(vertexType) << "\n");
     }
     if (vertexType == VertexType::ASSIGN ||
         vertexType == VertexType::ASSIGN_ALIAS ||
@@ -118,16 +117,16 @@ void ReadVerilatorXML::newVarRef(XMLNode *node) {
         // Var is reg l-value.
         // TODO: set varscope to REG
         netlist->addEdge(currentLogic->getVertex(), varScopeVertex);
-        std::cout << "Edge from logic to reg '" << varName << "'\n";
+        DEBUG(std::cout << "Edge from logic to reg '" << varName << "'\n");
       } else {
         // Var is wire l-value.
         netlist->addEdge(currentLogic->getVertex(), varScopeVertex);
-        std::cout << "Edge from logic to var '" << varName << "'\n";
+        DEBUG(std::cout << "Edge from logic to var '" << varName << "'\n");
       }
     } else {
       // Var is wire r-value.
       netlist->addEdge(varScopeVertex, currentLogic->getVertex());
-      std::cout << "Edge from var '" << varName << "' to logic\n";
+      DEBUG(std::cout << "Edge from var '" << varName << "' to logic\n");
     }
     iterateChildren(node);
   }
@@ -172,17 +171,15 @@ void ReadVerilatorXML::visitInitial(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitSenItem(XMLNode *node) {
-  /*if (currentLogic) {
+  if (currentLogic) {
     iterateChildren(node);
   } else {
     newStatement(node, VertexType::SEN_ITEM);
-  }*/
-  assert(0 && "unsupported");
+  }
 }
 
 void ReadVerilatorXML::visitSenGate(XMLNode *node) {
-  //newStatement(node, VertexType::SEN_GATE);
-  assert(0 && "unsupported");
+  newStatement(node, VertexType::SEN_GATE);
 }
 
 void ReadVerilatorXML::visitCFunc(XMLNode *node) {
@@ -219,18 +216,22 @@ Netlist& ReadVerilatorXML::readXML(const std::string &filename) {
   XMLNode *filesNode = rootNode->first_node("files");
   for (XMLNode *fileNode = filesNode->first_node("file");
        fileNode; fileNode = fileNode->next_sibling()) {
-    std::cout << "file " << fileNode->first_attribute("id")->value()
-              << " " << fileNode->first_attribute("filename")->value()
-              << " " << fileNode->first_attribute("language")->value() << "\n";
+    auto fileId = fileNode->first_attribute("id")->value();
+    auto filename = fileNode->first_attribute("filename")->value();
+    auto language = fileNode->first_attribute("language")->value();
+    netlist->addFile(File(fileId, filename, language));
   }
-  //XMLNode *moduleFilesNode = rootNode->first_node("module_files");
-  //XMLNode *cellsNode = rootNode->first_node("cells");
+  // Netlist section.
   XMLNode *netlistNode = rootNode->first_node("netlist");
+  assert(numChildren(netlistNode) == 2 &&
+         "expected module and typetable children");
+  // Module (single instance).
   XMLNode *topModuleNode = netlistNode->first_node("module");
+  visitModule(topModuleNode);
   assert(std::string(topModuleNode->first_attribute("name")->value()) == "TOP" &&
          "top module name does not equal TOP");
+  // Typetable.
   XMLNode *typeTableNode = netlistNode->first_node("typetable");
-  visitModule(topModuleNode);
   visitTypeTable(typeTableNode);
   return *netlist;
 }

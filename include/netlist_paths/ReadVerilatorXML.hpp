@@ -87,7 +87,8 @@ public:
     assert(resolveNode(varScopeNode->name()) == AstNode::VAR_SCOPE &&
            "invalid node, expecting VAR_SCOPE");
     vars.push_back(std::make_unique<VarScopeNode>(varScopeNode, vertex));
-    std::cout << "Add var '" << varScopeNode->first_attribute("name")->value()<<"' to scope\n";
+    DEBUG(auto name = varScopeNode->first_attribute("name")->value();
+          std::cout << "Add var '" << name << "' to scope\n");
   }
   VertexDesc lookupVarVertex(const std::string &name) {
     // Check the var ref is a suffix of a VAR_SCOPE.

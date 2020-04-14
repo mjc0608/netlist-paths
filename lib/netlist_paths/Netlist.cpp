@@ -195,33 +195,33 @@ bool Netlist::vertexEqual(const VertexDesc a,
 //  return true;
 //}
 
-/// Parse a graph input file and return a list of Vertices and a list of Edges.
-void Netlist::parseFile(const std::string &filename) {
-  INFO(std::cout << "Parsing input file\n");
-  //std::fstream infile(filename);
-  //if (!infile.is_open()) {
-  //  throw Exception("could not open file");
-  //}
-  //if (netlist_paths::options.boostParser) {
-  //  // FIXME: this does not set topName from the digraph declaration.
-  //  if (!boost::read_graphviz(infile, graph, dp))
-  //    throw Exception(std::string("reading graph file: ")+filename);
-  //} else {
-  //  if (!parseGraphViz(infile))
-  //    throw Exception(std::string("reading graph file: ")+filename);
-  //}
-  //if (!parseVerilatorXML(infile)) {
-  //  throw Exception(std::string("reading XML netlist file: ")+filename);
-  //}
-  //// Initialse other attributes.
-  //BGL_FORALL_VERTICES(v, graph, Graph) {
-  //  graph[v].deleted = false;
-  //  graph[v].isTop = netlist_paths::determineIsTop(graph[v].name);
-  //}
-  INFO(std::cout << "Netlist contains " << boost::num_vertices(graph)
-                 << " vertices and " << boost::num_edges(graph)
-                 << " edges\n");
-}
+///// Parse a graph input file and return a list of Vertices and a list of Edges.
+//void Netlist::parseFile(const std::string &filename) {
+//  INFO(std::cout << "Parsing input file\n");
+//  //std::fstream infile(filename);
+//  //if (!infile.is_open()) {
+//  //  throw Exception("could not open file");
+//  //}
+//  //if (netlist_paths::options.boostParser) {
+//  //  // FIXME: this does not set topName from the digraph declaration.
+//  //  if (!boost::read_graphviz(infile, graph, dp))
+//  //    throw Exception(std::string("reading graph file: ")+filename);
+//  //} else {
+//  //  if (!parseGraphViz(infile))
+//  //    throw Exception(std::string("reading graph file: ")+filename);
+//  //}
+//  //if (!parseVerilatorXML(infile)) {
+//  //  throw Exception(std::string("reading XML netlist file: ")+filename);
+//  //}
+//  //// Initialse other attributes.
+//  //BGL_FORALL_VERTICES(v, graph, Graph) {
+//  //  graph[v].deleted = false;
+//  //  graph[v].isTop = netlist_paths::determineIsTop(graph[v].name);
+//  //}
+//  INFO(std::cout << "Netlist contains " << boost::num_vertices(graph)
+//                 << " vertices and " << boost::num_edges(graph)
+//                 << " edges\n");
+//}
 
 /// Remove duplicate vertices from the graph by sorting them comparing each
 /// vertex to its neighbours.
@@ -238,7 +238,7 @@ void Netlist::mergeDuplicateVertices() {
   unsigned count = 0;
   for (size_t i=1; i<vs.size(); i++) {
     if (vertexEqual(vs[i], current)) {
-      //std::cout << "DUPLICATE VERTEX " << graph[vs[i]].name << "\n";
+      DEBUG(std::cout << "DUPLICATE VERTEX " << graph[vs[i]].name << "\n");
       BGL_FORALL_ADJ(vs[i], v, graph, Graph) {
         boost::add_edge(current, v, graph);
         boost::remove_edge(vs[i], v, graph);

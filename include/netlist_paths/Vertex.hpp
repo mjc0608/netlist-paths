@@ -18,10 +18,13 @@ enum VertexType {
   INITIAL,
   REG_SRC,
   REG_DST,
+  SEN_GATE,
+  SEN_ITEM,
   VAR,
   WIRE,
   PORT,
-  C_FUNC
+  C_FUNC,
+  INVALID
 };
 
 enum VertexDirection {
@@ -74,7 +77,9 @@ inline bool isLogic(const VertexProperties &p) {
          p.type == VertexType::ASSIGN_DLY ||
          p.type == VertexType::ASSIGN_W ||
          p.type == VertexType::ALWAYS ||
-         p.type == VertexType::INITIAL;
+         p.type == VertexType::INITIAL ||
+         p.type == VertexType::SEN_GATE ||
+         p.type == VertexType::SEN_ITEM;
 }
 
 inline bool isReg(const VertexProperties &p) {
@@ -111,23 +116,26 @@ inline bool canIgnore(const VertexProperties &p) {
          p.name.find("__Vconc") != std::string::npos;
 }
 
-inline VertexType getVertexType(const std::string &type) {
-       if (type == "LOGIC")        return VertexType::LOGIC;
-  else if (type == "ASSIGN")       return VertexType::ASSIGN;
-  else if (type == "ASSIGN_ALIAS") return VertexType::ASSIGN_ALIAS;
-  else if (type == "ASSIGN_DLY")   return VertexType::ASSIGN_DLY;
-  else if (type == "ASSIGN_W")     return VertexType::ASSIGN_W;
-  else if (type == "ALWAYS")       return VertexType::ALWAYS;
-  else if (type == "INITIAL")      return VertexType::INITIAL;
-  else if (type == "REG_SRC")      return VertexType::REG_SRC;
-  else if (type == "REG_DST")      return VertexType::REG_DST;
-  else if (type == "VAR")          return VertexType::VAR;
-  else if (type == "WIRE")         return VertexType::WIRE;
-  else if (type == "PORT")         return VertexType::PORT;
-  else if (type == "C_FUNC")       return VertexType::C_FUNC;
-  else {
-    throw Exception(std::string("unexpected vertex type: ")+type);
-  }
+inline VertexType getVertexType(const std::string &name) {
+  static std::map<std::string, VertexType> mappings {
+      {"LOGIC",        VertexType::LOGIC },
+      {"ASSIGN",       VertexType::ASSIGN },
+      {"ASSIGN_ALIAS", VertexType::ASSIGN_ALIAS },
+      {"ASSIGN_DLY",   VertexType::ASSIGN_DLY },
+      {"ASSIGN_W",     VertexType::ASSIGN_W },
+      {"ALWAYS",       VertexType::ALWAYS },
+      {"INITIAL",      VertexType::INITIAL },
+      {"REG_SRC",      VertexType::REG_SRC },
+      {"REG_DST",      VertexType::REG_DST },
+      {"SEN_GATE",     VertexType::SEN_GATE },
+      {"SEN_ITEM",     VertexType::SEN_ITEM },
+      {"VAR",          VertexType::VAR },
+      {"WIRE",         VertexType::WIRE },
+      {"PORT",         VertexType::PORT },
+      {"C_FUNC",       VertexType::C_FUNC },
+  };
+  auto it = mappings.find(name);
+  return (it != mappings.end()) ? it->second : VertexType::INVALID;
 }
 
 inline const char *getVertexTypeStr(VertexType type) {
@@ -141,10 +149,13 @@ inline const char *getVertexTypeStr(VertexType type) {
     case VertexType::INITIAL:      return "INITIAL";
     case VertexType::REG_SRC:      return "REG_SRC";
     case VertexType::REG_DST:      return "REG_DST";
+    case VertexType::SEN_GATE:     return "SEN_GATE";
+    case VertexType::SEN_ITEM:     return "SEN_ITEM";
     case VertexType::VAR:          return "VAR";
     case VertexType::WIRE:         return "WIRE";
     case VertexType::PORT:         return "PORT";
     case VertexType::C_FUNC:       return "C_FUNC";
+    case VertexType::INVALID:      return "INVALID";
     default:                       return "UNKNOWN";
   }
 }

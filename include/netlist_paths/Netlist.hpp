@@ -17,11 +17,23 @@ using VertexDesc = boost::graph_traits<Graph>::vertex_descriptor;
 using ParentMap = std::map<VertexDesc, std::vector<VertexDesc>>;
 using Path = std::vector<VertexDesc>;
 
+class File {
+  std::string id;
+  std::string filename;
+  std::string language;
+public:
+  File(const std::string &id,
+       const std::string &filename,
+       const std::string &language) :
+      id(id), filename(filename), language(language) {}
+};
+
 class Netlist {
 private:
   Graph graph;
   boost::dynamic_properties dp;
   std::string topName;
+  std::vector<File> files;
   std::vector<VertexDesc> waypoints;
 
   bool vertexCompare(const VertexDesc a, const VertexDesc b) const;
@@ -42,9 +54,7 @@ private:
 
 public:
   Netlist();
-  //bool parseVerilatorXML(std::istream &in);
-  //bool parseGraphViz(std::istream &in);
-  void parseFile(const std::string &filename);
+  void addFile(File file) { files.push_back(file); }
   VertexDesc addVertex(VertexType type) {
     auto vertex = boost::add_vertex(graph);
     graph[vertex].id = static_cast<unsigned long long>(vertex);
