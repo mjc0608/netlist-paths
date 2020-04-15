@@ -11,23 +11,28 @@ using namespace netlist_paths;
 void ReadVerilatorXML::dispatchVisitor(XMLNode *node) {
   // Handle node by type.
   switch (resolveNode(node->name())) {
-  case AstNode::ALWAYS:        visitAlways(node);    break;
-  case AstNode::ALWAYS_PUBLIC: visitAlways(node);    break;
-  case AstNode::ASSIGN:        visitAssign(node);    break;
-  case AstNode::ASSIGN_ALIAS:  visitAssign(node);    break;
-  case AstNode::ASSIGN_DLY:    visitAssignDly(node); break;
-  case AstNode::ASSIGN_W:      visitAssign(node);    break;
-  case AstNode::C_FUNC:        visitCFunc(node);     break;
-  case AstNode::CONT_ASSIGN:   visitAssign(node);    break;
-  case AstNode::INITIAL:       visitInitial(node);   break;
-  case AstNode::SEN_ITEM:      visitSenItem(node);   break;
-  case AstNode::SEN_GATE:      visitSenGate(node);   break;
-  case AstNode::SCOPE:         visitScope(node);     break;
-  case AstNode::TOP_SCOPE:     visitScope(node);     break;
-  case AstNode::VAR:           visitVar(node);       break;
-  case AstNode::VAR_REF:       visitVarRef(node);    break;
-  case AstNode::VAR_SCOPE:     visitVarScope(node);  break;
-  default:                     visitNode(node);      break;
+  case AstNode::ALWAYS:               visitAlways(node);             break;
+  case AstNode::ALWAYS_PUBLIC:        visitAlways(node);             break;
+  case AstNode::ASSIGN:               visitAssign(node);             break;
+  case AstNode::ASSIGN_ALIAS:         visitAssign(node);             break;
+  case AstNode::ASSIGN_DLY:           visitAssignDly(node);          break;
+  case AstNode::ASSIGN_W:             visitAssign(node);             break;
+  case AstNode::BASIC_DTYPE:          visitBasicDtype(node);         break;
+  case AstNode::CONT_ASSIGN:          visitAssign(node);             break;
+  case AstNode::C_FUNC:               visitCFunc(node);              break;
+  case AstNode::INITIAL:              visitInitial(node);            break;
+  case AstNode::PACKED_ARRAY_DTYPE:   visitPackedArrayDtype(node);   break;
+  case AstNode::REF_DTYPE:            visitRefDtype(node);           break;
+  case AstNode::SCOPE:                visitScope(node);              break;
+  case AstNode::SEN_GATE:             visitSenGate(node);            break;
+  case AstNode::SEN_ITEM:             visitSenItem(node);            break;
+  case AstNode::STRUCT_DTYPE:         visitStructDtype(node);        break;
+  case AstNode::TOP_SCOPE:            visitScope(node);              break;
+  case AstNode::UNPACKED_ARRAY_DTYPE: visitUnpackedArrayDtype(node); break;
+  case AstNode::VAR:                  visitVar(node);                break;
+  case AstNode::VAR_REF:              visitVarRef(node);             break;
+  case AstNode::VAR_SCOPE:            visitVarScope(node);           break;
+  default:                            visitNode(node);               break;
   }
 }
 
@@ -56,11 +61,55 @@ void ReadVerilatorXML::newScope(XMLNode *node) {
   scopeParents.pop();
 }
 
-void ReadVerilatorXML::newVarScope(XMLNode *node) {
-  assert(numChildren(node) == 0 && "varscope has children");
-  // Add this <varscope> to the current scope.
-  auto vertex = netlist->addVertex(VertexType::VAR);
-  currentScope->addVarScope(node, vertex);
+VertexDesc ReadVerilatorXML::lookupVarVertex(const std::string &name) {
+  // Check the var ref is a suffix of a VAR_SCOPE.
+  // (This is simplistic and should be improved, and/or check added for multiple matches.)
+  auto equals = [&name](const std::unique_ptr<VarNode> &node) {
+      return boost::algorithm::ends_with(node->getName(), name); };
+  auto it = std::find_if(std::begin(vars), std::end(vars), equals);
+  return (it != std::end(vars)) ? (*it)->getVertex()
+                                : boost::graph_traits<Graph>::null_vertex();
+}
+
+Location ReadVerilatorXML::parseLocation(const std::string location) {
+  std::vector<std::string> tokens;
+  boost::split(tokens, location, boost::is_any_of(","));
+  auto file      = fileIdMappings[tokens[0]];
+  auto startLine = static_cast<unsigned>(std::stoul(tokens[1]));
+  auto endLine   = static_cast<unsigned>(std::stoul(tokens[3]));
+  auto startCol  = static_cast<unsigned>(std::stoul(tokens[2]));
+  auto endCol    = static_cast<unsigned>(std::stoul(tokens[4]));
+  return Location(file, startLine, startCol, endLine, endCol);
+}
+
+void ReadVerilatorXML::newVar(XMLNode *node) {
+  // Create a new vertex from this <var>. Note that since this is a flattened
+  // version of the netlist, all <var> nodes occur at the module level, and are
+  // followed by a <topscope>, <scope> and then <varscopes>. There is no other
+  // scoping in the netlist.
+  auto name = node->first_attribute("name")->value();
+  auto location = parseLocation(node->first_attribute("loc")->value());
+  auto dtypeID = std::stoull(node->first_attribute("dtype_id")->value());
+  auto direction = (node->first_attribute("dir")) ?
+                     getVertexDirection(node->first_attribute("dir")->value()) :
+                     VertexDirection::NONE;
+  auto isParam = false;
+  auto paramValue = std::string();
+  if (node->first_attribute("param")) {
+    assert(std::string(node->first_node()->name()) == "const" &&
+           "expect const node under param");
+    isParam = true;
+    paramValue = node->first_node()->first_attribute("name")->value();
+  }
+  auto vertex = netlist->addVarVertex(VertexType::VAR,
+                                      direction,
+                                      location,
+                                      dtypeMappings[dtypeID],
+                                      name,
+                                      isParam,
+                                      paramValue);
+  vars.push_back(std::make_unique<VarNode>(name, vertex));
+  DEBUG(std::cout << "Add var '" << name << "' to scope\n");
 }
 
 void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
@@ -69,7 +118,8 @@ void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
   if (currentScope) {
     logicParents.push(std::move(currentLogic));
     // Create a vertex for this logic.
-    auto vertex = netlist->addVertex(vertexType);
+    auto location = parseLocation(node->first_attribute("loc")->value());
+    auto vertex = netlist->addLogicVertex(vertexType, location);
     currentLogic = std::make_unique<LogicNode>(node, *currentScope, vertex);
     // Create an edge from the parent logic to this one.
     if (logicParents.top()) {
@@ -104,29 +154,26 @@ void ReadVerilatorXML::newVarRef(XMLNode *node) {
       throw Exception(std::string("var ")+name+" not under a logic block");
     }
     auto varName = node->first_attribute("name")->value();
-    auto varScopeVertex = currentScope->lookupVarVertex(varName);
-    if (varScopeVertex == boost::graph_traits<Graph>::null_vertex()) {
+    auto varVertex = lookupVarVertex(varName);
+    if (varVertex == boost::graph_traits<Graph>::null_vertex()) {
       throw Exception(std::string("var ")+varName+" does not have a VAR_SCOPE");
     }
-    //auto varDTypeID = std::stoul(node->first_attribute("dtype_id")->value());
-    //auto varFileLine = node->first_attribute("fl")->value();
-    //auto varLocation = node->first_attribute("loc")->value();
     if (isLValue) {
       // Assignment to var
       if (isDelayedAssign) {
         // Var is reg l-value.
-        // TODO: set varscope to REG
-        netlist->addEdge(currentLogic->getVertex(), varScopeVertex);
-        DEBUG(std::cout << "Edge from logic to reg '" << varName << "'\n");
+        netlist->addEdge(currentLogic->getVertex(), varVertex);
+        netlist->setVertexReg(varVertex);
+        DEBUG(std::cout << "Edge from LOGIC to REG '" << varName << "'\n");
       } else {
         // Var is wire l-value.
-        netlist->addEdge(currentLogic->getVertex(), varScopeVertex);
-        DEBUG(std::cout << "Edge from logic to var '" << varName << "'\n");
+        netlist->addEdge(currentLogic->getVertex(), varVertex);
+        DEBUG(std::cout << "Edge from LOGIC to VAR '" << varName << "'\n");
       }
     } else {
       // Var is wire r-value.
-      netlist->addEdge(varScopeVertex, currentLogic->getVertex());
-      DEBUG(std::cout << "Edge from var '" << varName << "' to logic\n");
+      netlist->addEdge(varVertex, currentLogic->getVertex());
+      DEBUG(std::cout << "Edge from VAR '" << varName << "' to LOGIC\n");
     }
     iterateChildren(node);
   }
@@ -146,10 +193,6 @@ void ReadVerilatorXML::visitModule(XMLNode *node) {
 
 void ReadVerilatorXML::visitScope(XMLNode *node) {
   newScope(node);
-}
-
-void ReadVerilatorXML::visitTypeTable(XMLNode *node) {
-  iterateChildren(node);
 }
 
 void ReadVerilatorXML::visitAssign(XMLNode *node) {
@@ -187,15 +230,39 @@ void ReadVerilatorXML::visitCFunc(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitVar(XMLNode *node) {
-  iterateChildren(node);
+  newVar(node);
 }
 
 void ReadVerilatorXML::visitVarScope(XMLNode *node) {
-  newVarScope(node);
+  iterateChildren(node);
 }
 
 void ReadVerilatorXML::visitVarRef(XMLNode *node) {
-  newVarRef(node);
+  iterateChildren(node);
+}
+
+void ReadVerilatorXML::visitTypeTable(XMLNode *node) {
+  iterateChildren(node);
+}
+
+void ReadVerilatorXML::visitBasicDtype(XMLNode *node) {
+  iterateChildren(node);
+}
+
+void ReadVerilatorXML::visitRefDtype(XMLNode *node) {
+  iterateChildren(node);
+}
+
+void ReadVerilatorXML::visitPackedArrayDtype(XMLNode *node) {
+  iterateChildren(node);
+}
+
+void ReadVerilatorXML::visitUnpackedArrayDtype(XMLNode *node) {
+  iterateChildren(node);
+}
+
+void ReadVerilatorXML::visitStructDtype(XMLNode *node) {
+  iterateChildren(node);
 }
 
 Netlist& ReadVerilatorXML::readXML(const std::string &filename) {
@@ -219,19 +286,21 @@ Netlist& ReadVerilatorXML::readXML(const std::string &filename) {
     auto fileId = fileNode->first_attribute("id")->value();
     auto filename = fileNode->first_attribute("filename")->value();
     auto language = fileNode->first_attribute("language")->value();
-    netlist->addFile(File(fileId, filename, language));
+    fileIdMappings[fileId] = netlist->addFile(File(filename, language));
   }
   // Netlist section.
   XMLNode *netlistNode = rootNode->first_node("netlist");
   assert(numChildren(netlistNode) == 2 &&
          "expected module and typetable children");
+  // Typetable.
+  XMLNode *typeTableNode = netlistNode->first_node("typetable");
+  visitTypeTable(typeTableNode);
   // Module (single instance).
   XMLNode *topModuleNode = netlistNode->first_node("module");
   visitModule(topModuleNode);
   assert(std::string(topModuleNode->first_attribute("name")->value()) == "TOP" &&
          "top module name does not equal TOP");
-  // Typetable.
-  XMLNode *typeTableNode = netlistNode->first_node("typetable");
-  visitTypeTable(typeTableNode);
+  INFO(std::cout << "Netlist contains " << netlist->numVertices()
+                 << " vertices and " << netlist->numEdges() << " edges\n");
   return *netlist;
 }

@@ -132,14 +132,14 @@ int main(int argc, char **argv) {
       return 0;
     }
 
-    return 0; // TEMPORARY EARLY EXIT
-
     // Dump netlist names.
     if (netlist_paths::options.dumpNames) {
       auto vertices = netlist.getNames();
       netlist.printNames(vertices);
       return 0;
     }
+
+    return 0; // TEMPORARY EARLY EXIT
 
     // A start or an endpoint must be specified.
     if (startName.empty() && endName.empty()) {

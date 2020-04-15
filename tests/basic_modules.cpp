@@ -12,6 +12,7 @@
 #include "netlist_paths/CompileGraph.hpp"
 #include "netlist_paths/Netlist.hpp"
 #include "netlist_paths/Options.hpp"
+#include "netlist_paths/ReadVerilatorXML.hpp"
 #include "tests/definitions.hpp"
 
 namespace fs = boost::filesystem;
@@ -33,7 +34,8 @@ struct TestContext {
          defines,
          inputFiles,
          outTemp.native());
-    netlist.parseFile(outTemp.native());
+    auto vlXMLReader = netlist_paths::ReadVerilatorXML();
+    auto &netlist = vlXMLReader.readXML(outTemp.native());
     netlist.mergeDuplicateVertices();
     netlist.checkGraph();
     fs::remove(outTemp);

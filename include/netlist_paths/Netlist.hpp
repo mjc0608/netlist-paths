@@ -3,8 +3,8 @@
 
 #include <string>
 #include <vector>
-#include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/tokenizer.hpp>
 #include "netlist_paths/Vertex.hpp"
 
 namespace netlist_paths {
@@ -17,23 +17,12 @@ using VertexDesc = boost::graph_traits<Graph>::vertex_descriptor;
 using ParentMap = std::map<VertexDesc, std::vector<VertexDesc>>;
 using Path = std::vector<VertexDesc>;
 
-class File {
-  std::string id;
-  std::string filename;
-  std::string language;
-public:
-  File(const std::string &id,
-       const std::string &filename,
-       const std::string &language) :
-      id(id), filename(filename), language(language) {}
-};
-
 class Netlist {
 private:
   Graph graph;
-  boost::dynamic_properties dp;
   std::string topName;
   std::vector<File> files;
+  std::vector<DType> dtypes;
   std::vector<VertexDesc> waypoints;
 
   bool vertexCompare(const VertexDesc a, const VertexDesc b) const;
@@ -53,24 +42,54 @@ private:
                          VertexDesc endVertex) const;
 
 public:
-  Netlist();
-  void addFile(File file) { files.push_back(file); }
-  VertexDesc addVertex(VertexType type) {
+  Netlist() {}
+  std::shared_ptr<File> addFile(File file) {
+    files.push_back(file);
+    return std::make_shared<File>(files.back());
+  }
+  std::shared_ptr<DType> addDtype(DType dtype) {
+    dtypes.push_back(dtype);
+    return std::make_shared<DType>(dtypes.back());
+  }
+  VertexDesc addLogicVertex(VertexType type, Location location) {
     auto vertex = boost::add_vertex(graph);
     graph[vertex].id = static_cast<unsigned long long>(vertex);
     graph[vertex].type = type;
+    graph[vertex].direction = VertexDirection::NONE;
+    graph[vertex].location = location;
+    graph[vertex].isParam = false;
+    graph[vertex].isTop = false;
+    graph[vertex].deleted = false;
     return vertex;
   }
-  VertexDesc addVertex(VertexType type, const std::string &name) {
+  VertexDesc addVarVertex(VertexType type,
+                          VertexDirection direction,
+                          Location location,
+                          std::shared_ptr<DType> dtype,
+                          const std::string &name,
+                          bool isParam,
+                          const std::string &paramValue) {
     auto vertex = boost::add_vertex(graph);
     graph[vertex].id = static_cast<unsigned long long>(vertex);
     graph[vertex].type = type;
+    graph[vertex].direction = direction;
+    graph[vertex].location = location;
+    graph[vertex].dtype = dtype;
     graph[vertex].name.assign(name);
+    graph[vertex].isParam = isParam;
+    graph[vertex].paramValue.assign(paramValue);
+    graph[vertex].isTop = netlist_paths::determineIsTop(name);
+    graph[vertex].deleted = false;
     return vertex;
   }
   void addEdge(VertexDesc src, VertexDesc dst) {
     boost::add_edge(src, dst, graph);
   }
+  void setVertexReg(VertexDesc vertex) {
+    graph[vertex].type = VertexType::REG_DST;
+  }
+  std::size_t numVertices() { return boost::num_vertices(graph); }
+  std::size_t numEdges() { return boost::num_edges(graph); }
   void mergeDuplicateVertices();
   void checkGraph() const;
   void dumpDotFile(const std::string &outputFilename) const;
@@ -104,8 +123,6 @@ public:
   unsigned getFanInDegree(const std::string &endName);
   Path getAnyPointToPoint() const;
   std::vector<Path> getAllPointToPoint() const;
-  std::size_t getNumVertices() const { return boost::num_vertices(graph); }
-  std::size_t getNumEdges() const { return boost::num_edges(graph); }
   void addStartpoint(const std::string &name) {
     waypoints.push_back(getStartVertex(name));
   }

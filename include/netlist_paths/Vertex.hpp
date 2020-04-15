@@ -8,7 +8,7 @@
 
 namespace netlist_paths {
 
-enum VertexType {
+enum class VertexType {
   LOGIC,
   ASSIGN,
   ASSIGN_ALIAS,
@@ -27,20 +27,57 @@ enum VertexType {
   INVALID
 };
 
-enum VertexDirection {
+enum class VertexDirection {
   NONE,
   INPUT,
   OUTPUT,
   INOUT
 };
 
+class File {
+  std::string filename;
+  std::string language;
+public:
+  File(const std::string &filename,
+       const std::string &language) :
+      filename(filename), language(language) {}
+  const std::string &getFilename() { return filename; }
+};
+
+class Location {
+  std::shared_ptr<File> file;
+  unsigned startLine;
+  unsigned startCol;
+  unsigned endLine;
+  unsigned endCol;
+public:
+  Location() : file(nullptr) {}
+  Location(std::shared_ptr<File> file,
+           unsigned startLine,
+           unsigned startCol,
+           unsigned endLine,
+           unsigned endCol) :
+      file(file),
+      startLine(startLine),
+      endLine(endLine),
+      endCol(endCol) {}
+  const std::string getFilename() const { return file->getFilename(); }
+};
+
+class DType {
+public:
+  DType() {}
+};
+
 struct VertexProperties {
   unsigned long long id;
   VertexType type;
-  VertexDirection dir;
-  unsigned long width;
+  VertexDirection direction;
+  Location location;
+  std::shared_ptr<DType> dtype;
   std::string name;
-  std::string loc;
+  bool isParam;
+  std::string paramValue;
   bool isTop;
   bool deleted;
 };
@@ -91,15 +128,15 @@ inline bool isReg(const VertexProperties &p) {
 inline bool isStartPoint(const VertexProperties &p) {
   return !p.deleted &&
          (p.type == VertexType::REG_SRC ||
-          (p.dir == VertexDirection::INPUT && p.isTop) ||
-          (p.dir == VertexDirection::INOUT && p.isTop));
+          (p.direction == VertexDirection::INPUT && p.isTop) ||
+          (p.direction == VertexDirection::INOUT && p.isTop));
 }
 
 inline bool isEndPoint(const VertexProperties &p) {
   return !p.deleted &&
          (p.type == VertexType::REG_DST ||
-          (p.dir == VertexDirection::OUTPUT && p.isTop) ||
-          (p.dir == VertexDirection::INOUT && p.isTop));
+          (p.direction == VertexDirection::OUTPUT && p.isTop) ||
+          (p.direction == VertexDirection::INOUT && p.isTop));
 }
 
 inline bool isMidPoint(const VertexProperties &p) {
@@ -118,21 +155,21 @@ inline bool canIgnore(const VertexProperties &p) {
 
 inline VertexType getVertexType(const std::string &name) {
   static std::map<std::string, VertexType> mappings {
-      {"LOGIC",        VertexType::LOGIC },
-      {"ASSIGN",       VertexType::ASSIGN },
-      {"ASSIGN_ALIAS", VertexType::ASSIGN_ALIAS },
-      {"ASSIGN_DLY",   VertexType::ASSIGN_DLY },
-      {"ASSIGN_W",     VertexType::ASSIGN_W },
-      {"ALWAYS",       VertexType::ALWAYS },
-      {"INITIAL",      VertexType::INITIAL },
-      {"REG_SRC",      VertexType::REG_SRC },
-      {"REG_DST",      VertexType::REG_DST },
-      {"SEN_GATE",     VertexType::SEN_GATE },
-      {"SEN_ITEM",     VertexType::SEN_ITEM },
-      {"VAR",          VertexType::VAR },
-      {"WIRE",         VertexType::WIRE },
-      {"PORT",         VertexType::PORT },
-      {"C_FUNC",       VertexType::C_FUNC },
+      { "LOGIC",        VertexType::LOGIC },
+      { "ASSIGN",       VertexType::ASSIGN },
+      { "ASSIGN_ALIAS", VertexType::ASSIGN_ALIAS },
+      { "ASSIGN_DLY",   VertexType::ASSIGN_DLY },
+      { "ASSIGN_W",     VertexType::ASSIGN_W },
+      { "ALWAYS",       VertexType::ALWAYS },
+      { "INITIAL",      VertexType::INITIAL },
+      { "REG_SRC",      VertexType::REG_SRC },
+      { "REG_DST",      VertexType::REG_DST },
+      { "SEN_GATE",     VertexType::SEN_GATE },
+      { "SEN_ITEM",     VertexType::SEN_ITEM },
+      { "VAR",          VertexType::VAR },
+      { "WIRE",         VertexType::WIRE },
+      { "PORT",         VertexType::PORT },
+      { "C_FUNC",       VertexType::C_FUNC },
   };
   auto it = mappings.find(name);
   return (it != mappings.end()) ? it->second : VertexType::INVALID;
@@ -161,13 +198,13 @@ inline const char *getVertexTypeStr(VertexType type) {
 }
 
 inline VertexDirection getVertexDirection(const std::string &direction) {
-       if (direction == "NONE")   return VertexDirection::NONE;
-  else if (direction == "INPUT")  return VertexDirection::INPUT;
-  else if (direction == "OUTPUT") return VertexDirection::OUTPUT;
-  else if (direction == "INOUT")  return VertexDirection::INOUT;
-  else {
-    throw Exception(std::string("unexpected vertex direction: ")+direction);
-  }
+  static std::map<std::string, VertexDirection> mappings {
+      { "input",  VertexDirection::INPUT },
+      { "output", VertexDirection::OUTPUT },
+      { "inout",  VertexDirection::INOUT },
+  };
+  auto it = mappings.find(direction);
+  return (it != mappings.end()) ? it->second : VertexDirection::NONE;
 }
 
 inline const char *getVertexDirectionStr(VertexDirection direction) {
