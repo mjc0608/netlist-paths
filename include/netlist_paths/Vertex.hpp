@@ -41,7 +41,7 @@ public:
   File(const std::string &filename,
        const std::string &language) :
       filename(filename), language(language) {}
-  const std::string &getFilename() { return filename; }
+  const std::string &getFilename() const { return filename; }
 };
 
 class Location {

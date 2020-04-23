@@ -1,15 +1,15 @@
 #include <boost/python.hpp>
 #include "netlist_paths/Netlist.hpp"
-#include "netlist_paths/CompileGraph.hpp"
+#include "netlist_paths/RunVerilator.hpp"
 
 BOOST_PYTHON_MODULE(py_netlist_paths)
 {
   using namespace boost::python;
   using namespace netlist_paths;
 
-  int (CompileGraph::*run)(const std::string&, const std::string&) const = &CompileGraph::run;
+  int (RunVerilator::*run)(const std::string&, const std::string&) const = &RunVerilator::run;
 
-  class_<CompileGraph>("CompileGraph")
+  class_<RunVerilator>("RunVerilator")
     .def(init<const std::string&>())
     .def("run", run);
 

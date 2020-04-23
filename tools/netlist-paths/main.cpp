@@ -7,11 +7,11 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include "netlist_paths/Netlist.hpp"
-#include "netlist_paths/CompileGraph.hpp"
 #include "netlist_paths/Exception.hpp"
 #include "netlist_paths/Options.hpp"
 #include "netlist_paths/Debug.hpp"
 #include "netlist_paths/ReadVerilatorXML.hpp"
+#include "netlist_paths/RunVerilator.hpp"
 
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
       auto defines = vm.count("define")
                         ? vm["define"].as<std::vector<std::string>>()
                         : std::vector<std::string>{};
-      netlist_paths::CompileGraph compileGraph;
+      netlist_paths::RunVerilator compileGraph;
       return compileGraph.run(includes,
                               defines,
                               inputFiles,
