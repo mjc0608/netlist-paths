@@ -13,10 +13,10 @@ BOOST_PYTHON_MODULE(py_netlist_paths)
     .def(init<const std::string&>())
     .def("run", run);
 
-  class_<Netlist>("Netlist")
-    //.def("parse_file",        &Netlist::parseFile)
-    .def("reg_exists",        &Netlist::regExists)
-    .def("startpoint_exists", &Netlist::startpointExists)
-    .def("endpoint_exists",   &Netlist::endpointExists)
-    .def("path_exists",       &Netlist::pathExists);
+  class_<Netlist>("Netlist");
+  //  //.def("parse_file",        &Netlist::parseFile)
+  //  .def("reg_exists",        &Netlist::regExists)
+  //  .def("startpoint_exists", &Netlist::startpointExists)
+  //  .def("endpoint_exists",   &Netlist::endpointExists)
+  //  .def("path_exists",       &Netlist::pathExists);
 }

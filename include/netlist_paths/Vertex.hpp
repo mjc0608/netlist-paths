@@ -1,10 +1,11 @@
-#ifndef NETLIST_PATHS_GRAPH_HPP
-#define NETLIST_PATHS_GRAPH_HPP
+#ifndef NETLIST_PATHS_VERTEX_HPP
+#define NETLIST_PATHS_VERTEX_HPP
 
 #include <string>
 #include <vector>
 #include <boost/algorithm/string.hpp>
-#include "netlist_paths/Exception.hpp"
+#include "netlist_paths/Location.hpp"
+#include "netlist_paths/DTypes.hpp"
 
 namespace netlist_paths {
 
@@ -34,43 +35,8 @@ enum class VertexDirection {
   INOUT
 };
 
-class File {
-  std::string filename;
-  std::string language;
-public:
-  File(const std::string &filename,
-       const std::string &language) :
-      filename(filename), language(language) {}
-  const std::string &getFilename() const { return filename; }
-};
-
-class Location {
-  std::shared_ptr<File> file;
-  unsigned startLine;
-  unsigned startCol;
-  unsigned endLine;
-  unsigned endCol;
-public:
-  Location() : file(nullptr) {}
-  Location(std::shared_ptr<File> file,
-           unsigned startLine,
-           unsigned startCol,
-           unsigned endLine,
-           unsigned endCol) :
-      file(file),
-      startLine(startLine),
-      endLine(endLine),
-      endCol(endCol) {}
-  const std::string getFilename() const { return file->getFilename(); }
-};
-
-class DType {
-public:
-  DType() {}
-};
-
-struct VertexProperties {
-  unsigned long long id;
+struct Vertex {
+  //unsigned long long id;
   VertexType type;
   VertexDirection direction;
   Location location;
@@ -80,78 +46,115 @@ struct VertexProperties {
   std::string paramValue;
   bool isTop;
   bool deleted;
+  Vertex() {}
+  /// Logic vertex.
+  Vertex(VertexType type,
+         Location location) :
+      type(type),
+      direction(VertexDirection::NONE),
+      location(location),
+      isParam(false),
+      isTop(false),
+      deleted(false) {}
+  /// Var vertex.
+  Vertex(VertexType type,
+         VertexDirection direction,
+         Location location,
+         std::shared_ptr<DType> dtype,
+         const std::string &name,
+         bool isParam,
+         const std::string &paramValue) :
+      type(type),
+      direction(direction),
+      location(location),
+      dtype(dtype),
+      name(name),
+      isParam(isParam),
+      paramValue(paramValue),
+      isTop(determineIsTop(name)),
+      deleted(false) {}
+  /// Less than comparison
+  bool compareLessThan(const Vertex &b) {
+    if (name        < b.name)      return true;
+    if (b.name      < name)        return false;
+    if (type        < b.type)      return true;
+    if (b.type      < type)        return false;
+    if (direction   < b.direction) return true;
+    if (b.direction < direction)   return false;
+    if (deleted     < b.deleted)   return true;
+    if (b.deleted   < deleted)     return false;
+    return false;
+  }
+  /// Equality comparison
+  bool compareEqual(const Vertex &b) {
+    return type       == b.type &&
+           direction  == b.direction &&
+           location   == b.location &&
+           dtype      == b.dtype &&
+           name       == b.name &&
+           isParam    == b.isParam &&
+           paramValue == b.paramValue &&
+           isTop      == b.isTop &&
+           deleted    == b.deleted;
+  }
+  inline bool isSrcReg() const {
+    return !deleted &&
+           type == VertexType::REG_SRC;
+  }
+  inline bool isLogic() const {
+    return type == VertexType::LOGIC ||
+           type == VertexType::ASSIGN ||
+           type == VertexType::ASSIGN_ALIAS ||
+           type == VertexType::ASSIGN_DLY ||
+           type == VertexType::ASSIGN_W ||
+           type == VertexType::ALWAYS ||
+           type == VertexType::INITIAL ||
+           type == VertexType::SEN_GATE ||
+           type == VertexType::SEN_ITEM;
+  }
+  inline bool isReg() const {
+    return !deleted &&
+           (type == VertexType::REG_DST ||
+            type == VertexType::REG_SRC);
+  }
+  inline bool isStartPoint() const {
+    return !deleted &&
+           (type == VertexType::REG_SRC ||
+            (direction == VertexDirection::INPUT && isTop) ||
+            (direction == VertexDirection::INOUT && isTop));
+  }
+  inline bool isEndPoint() const {
+    return !deleted &&
+           (type == VertexType::REG_DST ||
+            (direction == VertexDirection::OUTPUT && isTop) ||
+            (direction == VertexDirection::INOUT && isTop));
+  }
+  inline bool isMidPoint() const {
+    return !deleted &&
+           (type == VertexType::VAR ||
+            type == VertexType::WIRE ||
+            type == VertexType::PORT);
+  }
+  inline bool canIgnore() const {
+    // Ignore variables Verilator has introduced.
+    return name.find("__Vdly") != std::string::npos ||
+           name.find("__Vcell") != std::string::npos ||
+           name.find("__Vconc") != std::string::npos;
+  }
+  void setDeleted() { deleted = true; }
+  static bool determineIsTop(const std::string &name) {
+    // Check there are no Vlvbound nodes.
+    assert(name.find("__Vlvbound") == std::string::npos);
+    // module.name or name is top level, but module.submodule.name is not.
+    std::vector<std::string> tokens;
+    boost::split(tokens, name, boost::is_any_of("."));
+    return tokens.size() < 3;
+  }
 };
 
+//===----------------------------------------------------------------------===//
 // Vertex helper fuctions.
-
-inline bool determineIsTop(const std::string &name) {
-  // Check there are no Vlvbound nodes.
-  assert(name.find("__Vlvbound") == std::string::npos);
-  // module.name or name is top level, but module.submodule.name is not.
-  std::vector<std::string> tokens;
-  boost::split(tokens, name, boost::is_any_of("."));
-  return tokens.size() < 3;
-}
-
-inline std::string expandName(const std::string &topName,
-                              const std::string &name) {
-  // Add prefix to top-level names that are missing it.
-  if (name.rfind(topName + ".", 0) == std::string::npos) {
-    return std::string() + topName + "." + name;
-  }
-  return name;
-}
-
-inline bool isSrcReg(const VertexProperties &p) {
-  return !p.deleted &&
-         p.type == VertexType::REG_SRC;
-}
-
-inline bool isLogic(const VertexProperties &p) {
-  return p.type == VertexType::LOGIC ||
-         p.type == VertexType::ASSIGN ||
-         p.type == VertexType::ASSIGN_ALIAS ||
-         p.type == VertexType::ASSIGN_DLY ||
-         p.type == VertexType::ASSIGN_W ||
-         p.type == VertexType::ALWAYS ||
-         p.type == VertexType::INITIAL ||
-         p.type == VertexType::SEN_GATE ||
-         p.type == VertexType::SEN_ITEM;
-}
-
-inline bool isReg(const VertexProperties &p) {
-  return !p.deleted &&
-         (p.type == VertexType::REG_DST ||
-          p.type == VertexType::REG_SRC);
-}
-
-inline bool isStartPoint(const VertexProperties &p) {
-  return !p.deleted &&
-         (p.type == VertexType::REG_SRC ||
-          (p.direction == VertexDirection::INPUT && p.isTop) ||
-          (p.direction == VertexDirection::INOUT && p.isTop));
-}
-
-inline bool isEndPoint(const VertexProperties &p) {
-  return !p.deleted &&
-         (p.type == VertexType::REG_DST ||
-          (p.direction == VertexDirection::OUTPUT && p.isTop) ||
-          (p.direction == VertexDirection::INOUT && p.isTop));
-}
-
-inline bool isMidPoint(const VertexProperties &p) {
-  return !p.deleted &&
-         (p.type == VertexType::VAR ||
-          p.type == VertexType::WIRE ||
-          p.type == VertexType::PORT);
-}
-
-inline bool canIgnore(const VertexProperties &p) {
-  // Ignore variables Verilator has introduced.
-  return p.name.find("__Vdly") != std::string::npos ||
-         p.name.find("__Vcell") != std::string::npos ||
-         p.name.find("__Vconc") != std::string::npos;
-}
+//===----------------------------------------------------------------------===//
 
 inline VertexType getVertexType(const std::string &name) {
   static std::map<std::string, VertexType> mappings {
@@ -219,4 +222,4 @@ inline const char *getVertexDirectionStr(VertexDirection direction) {
 
 } // End netlist_paths namespace.
 
-#endif // NETLIST_PATHS_GRAPH_HPP
+#endif // NETLIST_PATHS_VERTEX_HPP

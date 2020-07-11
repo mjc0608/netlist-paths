@@ -1,4 +1,4 @@
 [submodule "verilator"]
 	path = verilator
-	url = ssh://cgit@siliphab.eng.graphcore.ai/diffusion/VERILATOR/verilator.git
+	url = https://github.com/jameshanlon/verilator.git
 	branch = master

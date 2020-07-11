@@ -5,6 +5,7 @@
 #include <memory>
 #include <stack>
 #include <vector>
+#include <utility>
 #include <boost/algorithm/string/predicate.hpp>
 #include <rapidxml-1.13/rapidxml.hpp>
 
@@ -24,10 +25,12 @@ enum class AstNode {
   ASSIGN_W,
   BASIC_DTYPE,
   CONT_ASSIGN,
+  CONST,
   C_FUNC,
   INITIAL,
   MODULE,
   PACKED_ARRAY_DTYPE,
+  RANGE,
   REF_DTYPE,
   SCOPE,
   SEN_GATE,
@@ -54,6 +57,7 @@ static AstNode resolveNode(const char *name) {
       { "basicdtype",         AstNode::BASIC_DTYPE },
       { "cfunc",              AstNode::C_FUNC },
       { "contassign",         AstNode::CONT_ASSIGN },
+      { "const",              AstNode::CONST },
       { "initial",            AstNode::INITIAL },
       { "module",             AstNode::MODULE },
       { "packedarraydtype",   AstNode::PACKED_ARRAY_DTYPE },
@@ -107,7 +111,7 @@ private:
   std::unique_ptr<Netlist> netlist;
   std::vector<std::unique_ptr<VarNode>> vars;
   std::map<std::string, std::shared_ptr<File>> fileIdMappings;
-  std::map<unsigned, std::shared_ptr<DType>> dtypeMappings;
+  std::map<std::string, std::shared_ptr<DType>> dtypeMappings;
   std::stack<std::unique_ptr<LogicNode>> logicParents;
   std::stack<std::unique_ptr<ScopeNode>> scopeParents;
   std::unique_ptr<LogicNode> currentLogic;
@@ -140,8 +144,9 @@ private:
   void visitVarRef(XMLNode *node);
   void visitBasicDtype(XMLNode *node);
   void visitRefDtype(XMLNode *node);
-  void visitPackedArrayDtype(XMLNode *node);
-  void visitUnpackedArrayDtype(XMLNode *node);
+  std::string visitConst(XMLNode *node);
+  std::pair<std::string, std::string> visitRange(XMLNode *node);
+  void visitArrayDtype(XMLNode *node, bool packed);
   void visitStructDtype(XMLNode *node);
 
 public:

@@ -2,7 +2,9 @@
 #include <iostream>
 #include <map>
 
+#include "netlist_paths/DTypes.hpp"
 #include "netlist_paths/Debug.hpp"
+#include "netlist_paths/Exception.hpp"
 #include "netlist_paths/Options.hpp"
 #include "netlist_paths/ReadVerilatorXML.hpp"
 
@@ -21,14 +23,14 @@ void ReadVerilatorXML::dispatchVisitor(XMLNode *node) {
   case AstNode::CONT_ASSIGN:          visitAssign(node);             break;
   case AstNode::C_FUNC:               visitCFunc(node);              break;
   case AstNode::INITIAL:              visitInitial(node);            break;
-  case AstNode::PACKED_ARRAY_DTYPE:   visitPackedArrayDtype(node);   break;
+  case AstNode::PACKED_ARRAY_DTYPE:   visitArrayDtype(node, true);   break;
   case AstNode::REF_DTYPE:            visitRefDtype(node);           break;
   case AstNode::SCOPE:                visitScope(node);              break;
   case AstNode::SEN_GATE:             visitSenGate(node);            break;
   case AstNode::SEN_ITEM:             visitSenItem(node);            break;
   case AstNode::STRUCT_DTYPE:         visitStructDtype(node);        break;
   case AstNode::TOP_SCOPE:            visitScope(node);              break;
-  case AstNode::UNPACKED_ARRAY_DTYPE: visitUnpackedArrayDtype(node); break;
+  case AstNode::UNPACKED_ARRAY_DTYPE: visitArrayDtype(node, false);  break;
   case AstNode::VAR:                  visitVar(node);                break;
   case AstNode::VAR_REF:              visitVarRef(node);             break;
   case AstNode::VAR_SCOPE:            visitVarScope(node);           break;
@@ -74,7 +76,8 @@ VertexDesc ReadVerilatorXML::lookupVarVertex(const std::string &name) {
 Location ReadVerilatorXML::parseLocation(const std::string location) {
   std::vector<std::string> tokens;
   boost::split(tokens, location, boost::is_any_of(","));
-  auto file      = fileIdMappings[tokens[0]];
+  auto fileId    = tokens[0];
+  auto file      = fileIdMappings[fileId];
   auto startLine = static_cast<unsigned>(std::stoul(tokens[1]));
   auto endLine   = static_cast<unsigned>(std::stoul(tokens[3]));
   auto startCol  = static_cast<unsigned>(std::stoul(tokens[2]));
@@ -89,7 +92,7 @@ void ReadVerilatorXML::newVar(XMLNode *node) {
   // scoping in the netlist.
   auto name = node->first_attribute("name")->value();
   auto location = parseLocation(node->first_attribute("loc")->value());
-  auto dtypeID = std::stoull(node->first_attribute("dtype_id")->value());
+  auto dtypeID = node->first_attribute("dtype_id")->value();
   auto direction = (node->first_attribute("dir")) ?
                      getVertexDirection(node->first_attribute("dir")->value()) :
                      VertexDirection::NONE;
@@ -246,19 +249,46 @@ void ReadVerilatorXML::visitTypeTable(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitBasicDtype(XMLNode *node) {
-  iterateChildren(node);
+  auto id = node->first_attribute("id")->value();
+  auto name = node->first_attribute("name")->value();
+  auto location = parseLocation(node->first_attribute("loc")->value());
+  if (node->first_attribute("left") && node->first_attribute("right")) {
+    auto left = std::stoul(node->first_attribute("left")->value());
+    auto right = std::stoul(node->first_attribute("right")->value());
+    dtypeMappings[id] = netlist->addDtype(BasicDType(name, location, left, right));
+  } else {
+    dtypeMappings[id] = netlist->addDtype(BasicDType(name, location));
+  }
 }
 
 void ReadVerilatorXML::visitRefDtype(XMLNode *node) {
-  iterateChildren(node);
+  auto id = node->first_attribute("id")->value();
+  auto name = node->first_attribute("name")->value();
+  auto location = parseLocation(node->first_attribute("loc")->value());
+  dtypeMappings[id] = netlist->addDtype(RefDType(name, location));
 }
 
-void ReadVerilatorXML::visitPackedArrayDtype(XMLNode *node) {
-  iterateChildren(node);
+std::string ReadVerilatorXML::visitConst(XMLNode *node) {
+  return node->first_attribute("name")->value();
 }
 
-void ReadVerilatorXML::visitUnpackedArrayDtype(XMLNode *node) {
-  iterateChildren(node);
+std::pair<std::string, std::string> ReadVerilatorXML::visitRange(XMLNode *node) {
+  assert(numChildren(node) == 2 && "range expects two const children");
+  auto start = visitConst(node->first_node());
+  auto end = visitConst(node->last_node());
+  return std::make_pair(start, end);
+}
+
+void ReadVerilatorXML::visitArrayDtype(XMLNode *node, bool packed) {
+  auto id = node->first_attribute("id")->value();
+  auto name = node->first_attribute("name")->value();
+  auto location = parseLocation(node->first_attribute("loc")->value());
+  assert(numChildren(node) == 1 && "arraydtype expects one range child");
+  auto range = visitRange(node->first_node());
+  dtypeMappings[id] = netlist->addDtype(ArrayDType(name, location,
+                                                   range.first,
+                                                   range.second,
+                                                   packed));
 }
 
 void ReadVerilatorXML::visitStructDtype(XMLNode *node) {
