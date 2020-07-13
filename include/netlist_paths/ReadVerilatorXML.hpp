@@ -16,67 +16,6 @@ namespace netlist_paths {
 
 using XMLNode = rapidxml::xml_node<>;
 
-enum class AstNode {
-  ALWAYS,
-  ALWAYS_PUBLIC,
-  ASSIGN,
-  ASSIGN_ALIAS,
-  ASSIGN_DLY,
-  ASSIGN_W,
-  BASIC_DTYPE,
-  CONT_ASSIGN,
-  CONST,
-  C_FUNC,
-  INITIAL,
-  MODULE,
-  PACKED_ARRAY_DTYPE,
-  RANGE,
-  REF_DTYPE,
-  SCOPE,
-  SEN_GATE,
-  SEN_ITEM,
-  STRUCT_DTYPE,
-  TOP_SCOPE,
-  TYPE_TABLE,
-  UNPACKED_ARRAY_DTYPE,
-  VAR,
-  VAR_REF,
-  VAR_SCOPE,
-  INVALID
-};
-
-/// Convert a string name into an AstNode type.
-static AstNode resolveNode(const char *name) {
-  static std::map<std::string, AstNode> mappings {
-      { "always",             AstNode::ALWAYS },
-      { "alwayspublic",       AstNode::ALWAYS_PUBLIC },
-      { "assign",             AstNode::ASSIGN },
-      { "assignalias",        AstNode::ASSIGN_ALIAS },
-      { "assigndly",          AstNode::ASSIGN_DLY },
-      { "assignw",            AstNode::ASSIGN_W },
-      { "basicdtype",         AstNode::BASIC_DTYPE },
-      { "cfunc",              AstNode::C_FUNC },
-      { "contassign",         AstNode::CONT_ASSIGN },
-      { "const",              AstNode::CONST },
-      { "initial",            AstNode::INITIAL },
-      { "module",             AstNode::MODULE },
-      { "packedarraydtype",   AstNode::PACKED_ARRAY_DTYPE },
-      { "refdtype",           AstNode::REF_DTYPE },
-      { "scope",              AstNode::SCOPE },
-      { "sengate",            AstNode::SEN_GATE },
-      { "senitem",            AstNode::SEN_ITEM },
-      { "structdtype",        AstNode::STRUCT_DTYPE },
-      { "topscope",           AstNode::TOP_SCOPE },
-      { "typetable",          AstNode::TYPE_TABLE },
-      { "unpackedarraydtype", AstNode::UNPACKED_ARRAY_DTYPE },
-      { "var",                AstNode::VAR },
-      { "varref",             AstNode::VAR_REF },
-      { "varscope",           AstNode::VAR_SCOPE },
-  };
-  auto it = mappings.find(name);
-  return (it != mappings.end()) ? it->second : AstNode::INVALID;
-}
-
 class VarNode {
   std::string name;
   VertexDesc vertex;
@@ -108,7 +47,7 @@ public:
 
 class ReadVerilatorXML {
 private:
-  std::unique_ptr<Netlist> netlist;
+  Netlist *netlist; // boost::python doesn't support unique_ptrs.
   std::vector<std::unique_ptr<VarNode>> vars;
   std::map<std::string, std::shared_ptr<File>> fileIdMappings;
   std::map<std::string, std::shared_ptr<DType>> dtypeMappings;
@@ -151,13 +90,13 @@ private:
 
 public:
   ReadVerilatorXML() :
-      netlist(std::make_unique<Netlist>()),
+      netlist(new Netlist),
       currentLogic(nullptr),
       currentScope(nullptr),
       isDelayedAssign(false),
       isLValue(false) {}
   // Helper function to constuct a Netlist from Verilator XML output.
-  Netlist& readXML(const std::string &filename);
+  Netlist *readXML(const std::string &filename);
 };
 
 } // End netlist_paths namespace.

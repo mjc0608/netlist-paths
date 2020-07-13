@@ -143,8 +143,6 @@ struct Vertex {
   }
   void setDeleted() { deleted = true; }
   static bool determineIsTop(const std::string &name) {
-    // Check there are no Vlvbound nodes.
-    assert(name.find("__Vlvbound") == std::string::npos);
     // module.name or name is top level, but module.submodule.name is not.
     std::vector<std::string> tokens;
     boost::split(tokens, name, boost::is_any_of("."));
@@ -153,7 +151,7 @@ struct Vertex {
 };
 
 //===----------------------------------------------------------------------===//
-// Vertex helper fuctions.
+// Vertex type helper fuctions.
 //===----------------------------------------------------------------------===//
 
 inline VertexType getVertexType(const std::string &name) {

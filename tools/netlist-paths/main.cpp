@@ -119,9 +119,10 @@ int main(int argc, char **argv) {
       throw netlist_paths::Exception("multiple XML files specified");
     }
     auto vlXMLReader = netlist_paths::ReadVerilatorXML();
-    auto &netlist = vlXMLReader.readXML(inputFiles.front());
-    netlist.mergeDuplicateVertices();
-    netlist.checkGraph();
+    auto netlist = std::unique_ptr<netlist_paths::Netlist>(
+                       vlXMLReader.readXML(inputFiles.front()));
+    netlist->mergeDuplicateVertices();
+    netlist->checkGraph();
 
 //    // Dump dot file.
 //    if (netlist_paths::options.dumpDotfile) {

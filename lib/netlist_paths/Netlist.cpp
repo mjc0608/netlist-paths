@@ -59,8 +59,9 @@ public:
 void Netlist::mergeDuplicateVertices() {
   std::vector<VertexDesc> vs;
   BGL_FORALL_VERTICES(v, graph, Graph) {
-    if (!graph[v].isLogic())
+    if (!graph[v].isLogic()) {
       vs.push_back(v);
+    }
   }
   auto compare = [this](const VertexDesc a, const VertexDesc b) {
                    return graph[a].compareLessThan(graph[b]); };
@@ -89,6 +90,10 @@ void Netlist::mergeDuplicateVertices() {
 /// Perform some checks on the netlist and emit warnings if necessary.
 void Netlist::checkGraph() const {
   BGL_FORALL_VERTICES(v, graph, Graph) {
+    // Check there are no Vlvbound nodes.
+    if (graph[v].name.find("__Vlvbound") == std::string::npos) {
+      std::cout << "Warning: " << graph[v].name << " vertex in netlist\n";
+    }
     // Source registers don't have in edges.
     if (graph[v].type == VertexType::REG_SRC) {
       if (boost::in_degree(v, graph) > 0)

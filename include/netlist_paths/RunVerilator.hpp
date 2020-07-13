@@ -27,4 +27,3 @@ public:
 } // End namespace.
 
 #endif // NETLIST_RUN_VERILATOR_HPP
-

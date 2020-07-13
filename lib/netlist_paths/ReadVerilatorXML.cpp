@@ -10,6 +10,67 @@
 
 using namespace netlist_paths;
 
+enum class AstNode {
+  ALWAYS,
+  ALWAYS_PUBLIC,
+  ASSIGN,
+  ASSIGN_ALIAS,
+  ASSIGN_DLY,
+  ASSIGN_W,
+  BASIC_DTYPE,
+  CONT_ASSIGN,
+  CONST,
+  C_FUNC,
+  INITIAL,
+  MODULE,
+  PACKED_ARRAY_DTYPE,
+  RANGE,
+  REF_DTYPE,
+  SCOPE,
+  SEN_GATE,
+  SEN_ITEM,
+  STRUCT_DTYPE,
+  TOP_SCOPE,
+  TYPE_TABLE,
+  UNPACKED_ARRAY_DTYPE,
+  VAR,
+  VAR_REF,
+  VAR_SCOPE,
+  INVALID
+};
+
+/// Convert a string name into an AstNode type.
+static AstNode resolveNode(const char *name) {
+  static std::map<std::string, AstNode> mappings {
+      { "always",             AstNode::ALWAYS },
+      { "alwayspublic",       AstNode::ALWAYS_PUBLIC },
+      { "assign",             AstNode::ASSIGN },
+      { "assignalias",        AstNode::ASSIGN_ALIAS },
+      { "assigndly",          AstNode::ASSIGN_DLY },
+      { "assignw",            AstNode::ASSIGN_W },
+      { "basicdtype",         AstNode::BASIC_DTYPE },
+      { "cfunc",              AstNode::C_FUNC },
+      { "contassign",         AstNode::CONT_ASSIGN },
+      { "const",              AstNode::CONST },
+      { "initial",            AstNode::INITIAL },
+      { "module",             AstNode::MODULE },
+      { "packedarraydtype",   AstNode::PACKED_ARRAY_DTYPE },
+      { "refdtype",           AstNode::REF_DTYPE },
+      { "scope",              AstNode::SCOPE },
+      { "sengate",            AstNode::SEN_GATE },
+      { "senitem",            AstNode::SEN_ITEM },
+      { "structdtype",        AstNode::STRUCT_DTYPE },
+      { "topscope",           AstNode::TOP_SCOPE },
+      { "typetable",          AstNode::TYPE_TABLE },
+      { "unpackedarraydtype", AstNode::UNPACKED_ARRAY_DTYPE },
+      { "var",                AstNode::VAR },
+      { "varref",             AstNode::VAR_REF },
+      { "varscope",           AstNode::VAR_SCOPE },
+  };
+  auto it = mappings.find(name);
+  return (it != mappings.end()) ? it->second : AstNode::INVALID;
+}
+
 void ReadVerilatorXML::dispatchVisitor(XMLNode *node) {
   // Handle node by type.
   switch (resolveNode(node->name())) {
@@ -295,7 +356,7 @@ void ReadVerilatorXML::visitStructDtype(XMLNode *node) {
   iterateChildren(node);
 }
 
-Netlist& ReadVerilatorXML::readXML(const std::string &filename) {
+Netlist *ReadVerilatorXML::readXML(const std::string &filename) {
   INFO(std::cout << "Parsing input XML file\n");
   std::fstream inputFile(filename);
   if (!inputFile.is_open()) {
@@ -332,5 +393,5 @@ Netlist& ReadVerilatorXML::readXML(const std::string &filename) {
          "top module name does not equal TOP");
   INFO(std::cout << "Netlist contains " << netlist->numVertices()
                  << " vertices and " << netlist->numEdges() << " edges\n");
-  return *netlist;
+  return netlist;
 }
