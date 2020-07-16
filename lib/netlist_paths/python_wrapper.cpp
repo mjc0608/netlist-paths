@@ -1,7 +1,6 @@
 #include <boost/python.hpp>
-#include "netlist_paths/Netlist.hpp"
 #include "netlist_paths/RunVerilator.hpp"
-#include "netlist_paths/ReadVerilatorXML.hpp"
+#include "netlist_paths/NetlistPaths.hpp"
 
 BOOST_PYTHON_MODULE(py_netlist_paths)
 {
@@ -14,11 +13,8 @@ BOOST_PYTHON_MODULE(py_netlist_paths)
     .def(init<const std::string&>())
     .def("run", run);
 
-  class_<ReadVerilatorXML, boost::noncopyable>("ReadVerilatorXML")
-    .def("readXML", &ReadVerilatorXML::readXML,
-         return_value_policy<reference_existing_object>());
-
-  class_<Netlist>("Netlist");
+  class_<NetlistPaths, boost::noncopyable>("NetlistPaths")
+    .def(init<const std::string&>());
   //  .def("reg_exists",        &Netlist::regExists)
   //  .def("startpoint_exists", &Netlist::startpointExists)
   //  .def("endpoint_exists",   &Netlist::endpointExists)

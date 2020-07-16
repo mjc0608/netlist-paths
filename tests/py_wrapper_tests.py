@@ -16,7 +16,7 @@ class TeastPyWrapper(unittest.TestCase):
     def test_adder(self):
         comp = py_netlist_paths.RunVerilator(defs.INSTALL_PREFIX)
         comp.run(os.path.join(defs.TEST_SRC_PREFIX, 'adder.sv'), 'netlist.xml')
-        netlist = py_netlist_paths.ReadVerilatorXML().readXML('netlist.xml')
+        netlist = py_netlist_paths.NetlistPaths('netlist.xml')
         ## Check all valid paths are reported.
         #self.assertTrue(graph.path_exists('adder.i_a', 'adder.o_sum'))
         #self.assertTrue(graph.path_exists('adder.i_a', 'adder.o_co'))
@@ -31,7 +31,7 @@ class TeastPyWrapper(unittest.TestCase):
     def test_counter(self):
         comp = py_netlist_paths.RunVerilator(defs.INSTALL_PREFIX)
         comp.run(os.path.join(defs.TEST_SRC_PREFIX, 'counter.sv'), 'netlist.xml')
-        netlist = py_netlist_paths.ReadVerilatorXML().readXML('netlist.xml')
+        netlist = py_netlist_paths.NetlistPaths('netlist.xml')
         ## Register can be start or end point.
         #self.assertTrue(graph.reg_exists('counter_q'))
         #self.assertTrue(graph.startpoint_exists('counter_q'))

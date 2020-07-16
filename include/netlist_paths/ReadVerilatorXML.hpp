@@ -47,7 +47,7 @@ public:
 
 class ReadVerilatorXML {
 private:
-  Netlist *netlist; // boost::python doesn't support unique_ptrs.
+  std::unique_ptr<Netlist> netlist;
   std::vector<std::unique_ptr<VarNode>> vars;
   std::map<std::string, std::shared_ptr<File>> fileIdMappings;
   std::map<std::string, std::shared_ptr<DType>> dtypeMappings;
@@ -90,13 +90,13 @@ private:
 
 public:
   ReadVerilatorXML() :
-      netlist(new Netlist),
+      netlist(std::make_unique<Netlist>()),
       currentLogic(nullptr),
       currentScope(nullptr),
       isDelayedAssign(false),
       isLValue(false) {}
   // Helper function to constuct a Netlist from Verilator XML output.
-  Netlist *readXML(const std::string &filename);
+  std::unique_ptr<Netlist> readXML(const std::string &filename);
 };
 
 } // End netlist_paths namespace.

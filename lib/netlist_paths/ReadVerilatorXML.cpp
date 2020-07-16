@@ -356,7 +356,7 @@ void ReadVerilatorXML::visitStructDtype(XMLNode *node) {
   iterateChildren(node);
 }
 
-Netlist *ReadVerilatorXML::readXML(const std::string &filename) {
+std::unique_ptr<Netlist> ReadVerilatorXML::readXML(const std::string &filename) {
   INFO(std::cout << "Parsing input XML file\n");
   std::fstream inputFile(filename);
   if (!inputFile.is_open()) {
@@ -393,5 +393,5 @@ Netlist *ReadVerilatorXML::readXML(const std::string &filename) {
          "top module name does not equal TOP");
   INFO(std::cout << "Netlist contains " << netlist->numVertices()
                  << " vertices and " << netlist->numEdges() << " edges\n");
-  return netlist;
+  return std::move(netlist);
 }
