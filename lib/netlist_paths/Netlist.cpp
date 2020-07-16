@@ -95,13 +95,13 @@ void Netlist::checkGraph() const {
       std::cout << "Warning: " << graph[v].name << " vertex in netlist\n";
     }
     // Source registers don't have in edges.
-    if (graph[v].type == VertexType::REG_SRC) {
+    if (graph[v].astType == VertexAstType::REG_SRC) {
       if (boost::in_degree(v, graph) > 0)
          std::cout << "Warning: source reg " << graph[v].name
                    << " has in edges" << "\n";
     }
     // Destination registers don't have out edges.
-    if (graph[v].type == VertexType::REG_DST) {
+    if (graph[v].astType == VertexAstType::REG_DST) {
       if (boost::out_degree(v, graph) > 0)
         std::cout << "Warning: destination reg " << graph[v].name
                   << " has out edges"<<"\n";
@@ -111,93 +111,69 @@ void Netlist::checkGraph() const {
   }
 }
 
-///// Dump unique names of vars/regs/wires in the netlist for searching.
-//std::vector<VertexDesc> Netlist::getNames() const {
-//  std::vector<VertexDesc> vs;
-//  // Collect vertices.
-//  BGL_FORALL_VERTICES(v, graph, Graph) {
-//    if (!isLogic(graph[v]) &&
-//        !isSrcReg(graph[v]) &&
-//        !canIgnore(graph[v]) &&
-//        !graph[v].deleted) {
-//      vs.push_back(v);
-//    }
-//  }
-//  // Sort them.
-//  auto compare = [this](const VertexDesc a, const VertexDesc b) {
-//                   return vertexCompare(a, b); };
-//  std::sort(vs.begin(), vs.end(), compare);
-//  return vs;
-//}
-//
-//void Netlist::printNames(std::vector<VertexDesc> &names) const {
-//  // Print the output.
-//  int maxWidth = maxNameLength(names) + 1;
-//  std::cout << std::left << std::setw(maxWidth) << "Name"
-//            << std::left << std::setw(10)       << "Type"
-//            << std::left << std::setw(10)       << "Direction"
-//            << std::left << std::setw(10)       << "Width"
-//                                                << "Location\n";
-//  for (auto v : names) {
-//    auto type = getVertexTypeStr(graph[v].type);
-//    auto srcPath = netlist_paths::options.fullFileNames ? fs::path(graph[v].location.getFilename())
-//                                                        : fs::path(graph[v].location.getFilename()).filename();
-//    std::cout << std::left << std::setw(maxWidth) << graph[v].name
-//              << std::left << std::setw(10)       << (std::string(type) == "REG_DST" ? "REG" : type)
-//              << std::left << std::setw(10)       << getVertexDirectionStr(graph[v].direction)
-//              //<< std::left << std::setw(10)       << graph[v].width
-//                                                  << srcPath.string()
-//              << "\n";
-//  }
-//}
-//
-///// Dump a Graphviz dotfile of the netlist graph for visualisation.
-//void Netlist::dumpDotFile(const std::string &outputFilename) const {
-//  std::ofstream outputFile(outputFilename);
-//  if (!outputFile.is_open()) {
-//    throw Exception(std::string("unable to open ")+outputFilename);
-//  }
-////  // Write graphviz format.
-////  boost::write_graphviz_dp(outputFile, graph, dp, /*node_id=*/"id");
-//  // Loop over all vertices and print properties.
-//  outputFile << "digraph netlist {\n";
-//  BGL_FORALL_VERTICES(v, graph, Graph) {
-//    outputFile << v << " [id="<<graph[v].id
-//       <<" name=\""<<graph[v].name << "\""
-//       <<" type=\""<<getVertexTypeStr(graph[v].type) << "\""
-//       <<"]\n";
-//  }
-//  // Loop over all edges.
-//  BGL_FORALL_EDGES(e, graph, Graph) {
-//    outputFile << boost::source(e, graph) << " -> "
-//               << boost::target(e, graph) << ";\n";
-//  }
-//  outputFile << "}\n";
-//  outputFile.close();
-//  // Print command line to generate graph file.
-//  INFO(std::cout << "dot -Tpdf " << outputFilename << " -o graph.pdf\n");
-//}
-//
-///// Lookup a vertex using a regex pattern and function specifying a type.
-//VertexDesc Netlist::getVertexDesc(const std::string &name,
-//                                  bool matchVertex (const VertexProperties &p)) const {
-//  // FIXME: create a list of candidate vertices, rather than iterating all vertices.
-//  auto nameRegexStr(name);
-//  // Ignoring '/' (when supplying a heirarchical ref).
-//  std::replace(nameRegexStr.begin(), nameRegexStr.end(), '_', '.');
-//  // Or '_' (when supplying a flattened name).
-//  std::replace(nameRegexStr.begin(), nameRegexStr.end(), '/', '.');
-//  std::regex nameRegex(nameRegexStr);
-//  BGL_FORALL_VERTICES(v, graph, Graph) {
-//    if (matchVertex(graph[v])) {
-//      if (std::regex_search(graph[v].name, nameRegex)) {
-//        return v;
-//      }
-//    }
-//  }
-//  return boost::graph_traits<Graph>::null_vertex();
-//}
-//
+/// Dump unique names of vars/regs/wires in the netlist for searching.
+std::vector<VertexDesc> Netlist::getNames() const {
+  std::vector<VertexDesc> vs;
+  // Collect vertices.
+  BGL_FORALL_VERTICES(v, graph, Graph) {
+    if (graph[v].isVisible()) {
+      vs.push_back(v);
+    }
+  }
+  // Sort them.
+  auto compare = [this](const VertexDesc a, const VertexDesc b) {
+                   return graph[a].compareLessThan(graph[b]); };
+  std::sort(vs.begin(), vs.end(), compare);
+  return vs;
+}
+
+/// Dump a Graphviz dotfile of the netlist graph for visualisation.
+void Netlist::dumpDotFile(const std::string &outputFilename) const {
+  std::ofstream outputFile(outputFilename);
+  if (!outputFile.is_open()) {
+    throw Exception(std::string("unable to open ")+outputFilename);
+  }
+//  // Write graphviz format.
+//  boost::write_graphviz_dp(outputFile, graph, dp, /*node_id=*/"id");
+  // Loop over all vertices and print properties.
+  outputFile << "digraph netlist {\n";
+  BGL_FORALL_VERTICES(v, graph, Graph) {
+    outputFile << v << " ["
+       << "name=\""<<graph[v].name << "\" "
+       << "type=\""<<getVertexAstTypeStr(graph[v].astType) << "\""
+       << "]\n";
+  }
+  // Loop over all edges.
+  BGL_FORALL_EDGES(e, graph, Graph) {
+    outputFile << boost::source(e, graph) << " -> "
+               << boost::target(e, graph) << ";\n";
+  }
+  outputFile << "}\n";
+  outputFile.close();
+  // Print command line to generate graph file.
+  INFO(std::cout << "dot -Tpdf " << outputFilename << " -o graph.pdf\n");
+}
+
+/// Lookup a vertex using a regex pattern and function specifying a type.
+VertexDesc Netlist::getVertexDesc(const std::string &name,
+                                  VertexGraphType graphType) const {
+  // FIXME: create a list of candidate vertices, rather than iterating all vertices.
+  auto nameRegexStr(name);
+  // Ignoring '/' (when supplying a heirarchical ref).
+  std::replace(nameRegexStr.begin(), nameRegexStr.end(), '_', '.');
+  // Or '_' (when supplying a flattened name).
+  std::replace(nameRegexStr.begin(), nameRegexStr.end(), '/', '.');
+  std::regex nameRegex(nameRegexStr);
+  BGL_FORALL_VERTICES(v, graph, Graph) {
+    if (graph[v].isGraphType(graphType)) {
+      if (std::regex_search(graph[v].name, nameRegex)) {
+        return v;
+      }
+    }
+  }
+  return boost::graph_traits<Graph>::null_vertex();
+}
+
 //// FIXME: Move exception logic into tool.
 //VertexDesc Netlist::getStartVertexExcept(const std::string &name) const {
 //  auto vertex = getStartVertex(name);
@@ -281,18 +257,7 @@ void Netlist::checkGraph() const {
 //    }
 //  }
 //}
-//
-///// Determine the max length of a name.
-//int Netlist::maxNameLength(const Path &path) const {
-//  size_t maxLength = 0;
-//  for (auto v : path) {
-//    if (canIgnore(graph[v]))
-//      continue;
-//    maxLength = std::max(maxLength, graph[v].name.size());
-//  }
-//  return static_cast<int>(maxLength);
-//}
-//
+
 ///// Pretty print a path (some sequence of vertices).
 //void Netlist::printPathReport(const Path &path) const {
 //  int maxWidth = maxNameLength(path) + 1;
@@ -313,7 +278,7 @@ void Netlist::checkGraph() const {
 //      if (isLogic(graph[v])) {
 //        std::cout << "  " << std::left
 //                  << std::setw(maxWidth)
-//                  << getVertexTypeStr(graph[v].type)
+//                  << getVertexAstTypeStr(graph[v].type)
 //                  << std::setw(VERTEX_TYPE_STR_MAX_LEN)
 //                  << "LOGIC"
 //                  << srcPath.string() << "\n";
@@ -322,7 +287,7 @@ void Netlist::checkGraph() const {
 //                  << std::setw(maxWidth)
 //                  << graph[v].name
 //                  << std::setw(VERTEX_TYPE_STR_MAX_LEN)
-//                  << getVertexTypeStr(graph[v].type)
+//                  << getVertexAstTypeStr(graph[v].type)
 //                  << srcPath.string() << "\n";
 //      }
 //    }

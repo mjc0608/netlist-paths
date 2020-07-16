@@ -9,7 +9,7 @@
 
 namespace netlist_paths {
 
-enum class VertexType {
+enum class VertexAstType {
   LOGIC,
   ASSIGN,
   ASSIGN_ALIAS,
@@ -28,6 +28,15 @@ enum class VertexType {
   INVALID
 };
 
+enum class VertexGraphType {
+  REG,
+  SRC_REG,
+  LOGIC,
+  START_POINT,
+  END_POINT,
+  MID_POINT
+};
+
 enum class VertexDirection {
   NONE,
   INPUT,
@@ -37,7 +46,7 @@ enum class VertexDirection {
 
 struct Vertex {
   //unsigned long long id;
-  VertexType type;
+  VertexAstType astType;
   VertexDirection direction;
   Location location;
   std::shared_ptr<DType> dtype;
@@ -48,23 +57,23 @@ struct Vertex {
   bool deleted;
   Vertex() {}
   /// Logic vertex.
-  Vertex(VertexType type,
+  Vertex(VertexAstType type,
          Location location) :
-      type(type),
+      astType(type),
       direction(VertexDirection::NONE),
       location(location),
       isParam(false),
       isTop(false),
       deleted(false) {}
   /// Var vertex.
-  Vertex(VertexType type,
+  Vertex(VertexAstType type,
          VertexDirection direction,
          Location location,
          std::shared_ptr<DType> dtype,
          const std::string &name,
          bool isParam,
          const std::string &paramValue) :
-      type(type),
+      astType(type),
       direction(direction),
       location(location),
       dtype(dtype),
@@ -73,12 +82,18 @@ struct Vertex {
       paramValue(paramValue),
       isTop(determineIsTop(name)),
       deleted(false) {}
+  static bool determineIsTop(const std::string &name) {
+    // module.name or name is top level, but module.submodule.name is not.
+    std::vector<std::string> tokens;
+    boost::split(tokens, name, boost::is_any_of("."));
+    return tokens.size() < 3;
+  }
   /// Less than comparison
-  bool compareLessThan(const Vertex &b) {
+  bool compareLessThan(const Vertex &b) const {
     if (name        < b.name)      return true;
     if (b.name      < name)        return false;
-    if (type        < b.type)      return true;
-    if (b.type      < type)        return false;
+    if (astType     < b.astType)   return true;
+    if (b.astType   < astType)     return false;
     if (direction   < b.direction) return true;
     if (b.direction < direction)   return false;
     if (deleted     < b.deleted)   return true;
@@ -86,8 +101,8 @@ struct Vertex {
     return false;
   }
   /// Equality comparison
-  bool compareEqual(const Vertex &b) {
-    return type       == b.type &&
+  bool compareEqual(const Vertex &b) const {
+    return astType    == b.astType &&
            direction  == b.direction &&
            location   == b.location &&
            dtype      == b.dtype &&
@@ -97,43 +112,54 @@ struct Vertex {
            isTop      == b.isTop &&
            deleted    == b.deleted;
   }
+  bool isGraphType(VertexGraphType type) const {
+    switch (type) {
+      case VertexGraphType::REG:         return isReg();
+      case VertexGraphType::SRC_REG:     return isSrcReg();
+      case VertexGraphType::LOGIC:       return isLogic();
+      case VertexGraphType::START_POINT: return isStartPoint();
+      case VertexGraphType::END_POINT:   return isEndPoint();
+      case VertexGraphType::MID_POINT:   return isMidPoint();
+      default:                           return false;
+    }
+  }
   inline bool isSrcReg() const {
     return !deleted &&
-           type == VertexType::REG_SRC;
+           astType == VertexAstType::REG_SRC;
   }
   inline bool isLogic() const {
-    return type == VertexType::LOGIC ||
-           type == VertexType::ASSIGN ||
-           type == VertexType::ASSIGN_ALIAS ||
-           type == VertexType::ASSIGN_DLY ||
-           type == VertexType::ASSIGN_W ||
-           type == VertexType::ALWAYS ||
-           type == VertexType::INITIAL ||
-           type == VertexType::SEN_GATE ||
-           type == VertexType::SEN_ITEM;
+    return astType == VertexAstType::LOGIC ||
+           astType == VertexAstType::ASSIGN ||
+           astType == VertexAstType::ASSIGN_ALIAS ||
+           astType == VertexAstType::ASSIGN_DLY ||
+           astType == VertexAstType::ASSIGN_W ||
+           astType == VertexAstType::ALWAYS ||
+           astType == VertexAstType::INITIAL ||
+           astType == VertexAstType::SEN_GATE ||
+           astType == VertexAstType::SEN_ITEM;
   }
   inline bool isReg() const {
     return !deleted &&
-           (type == VertexType::REG_DST ||
-            type == VertexType::REG_SRC);
+           (astType == VertexAstType::REG_DST ||
+            astType == VertexAstType::REG_SRC);
   }
   inline bool isStartPoint() const {
     return !deleted &&
-           (type == VertexType::REG_SRC ||
+           (astType == VertexAstType::REG_SRC ||
             (direction == VertexDirection::INPUT && isTop) ||
             (direction == VertexDirection::INOUT && isTop));
   }
   inline bool isEndPoint() const {
     return !deleted &&
-           (type == VertexType::REG_DST ||
+           (astType == VertexAstType::REG_DST ||
             (direction == VertexDirection::OUTPUT && isTop) ||
             (direction == VertexDirection::INOUT && isTop));
   }
   inline bool isMidPoint() const {
     return !deleted &&
-           (type == VertexType::VAR ||
-            type == VertexType::WIRE ||
-            type == VertexType::PORT);
+           (astType == VertexAstType::VAR ||
+            astType == VertexAstType::WIRE ||
+            astType == VertexAstType::PORT);
   }
   inline bool canIgnore() const {
     // Ignore variables Verilator has introduced.
@@ -141,60 +167,62 @@ struct Vertex {
            name.find("__Vcell") != std::string::npos ||
            name.find("__Vconc") != std::string::npos;
   }
-  void setDeleted() { deleted = true; }
-  static bool determineIsTop(const std::string &name) {
-    // module.name or name is top level, but module.submodule.name is not.
-    std::vector<std::string> tokens;
-    boost::split(tokens, name, boost::is_any_of("."));
-    return tokens.size() < 3;
+  /// Visible vertices are displayed in the name dump.
+  inline bool isVisible() const {
+    return !isLogic() &&
+           !isSrcReg() &&
+           !canIgnore() &&
+           !isDeleted();
   }
+  bool isDeleted() const { return deleted; }
+  void setDeleted() { deleted = true; }
 };
 
 //===----------------------------------------------------------------------===//
 // Vertex type helper fuctions.
 //===----------------------------------------------------------------------===//
 
-inline VertexType getVertexType(const std::string &name) {
-  static std::map<std::string, VertexType> mappings {
-      { "LOGIC",        VertexType::LOGIC },
-      { "ASSIGN",       VertexType::ASSIGN },
-      { "ASSIGN_ALIAS", VertexType::ASSIGN_ALIAS },
-      { "ASSIGN_DLY",   VertexType::ASSIGN_DLY },
-      { "ASSIGN_W",     VertexType::ASSIGN_W },
-      { "ALWAYS",       VertexType::ALWAYS },
-      { "INITIAL",      VertexType::INITIAL },
-      { "REG_SRC",      VertexType::REG_SRC },
-      { "REG_DST",      VertexType::REG_DST },
-      { "SEN_GATE",     VertexType::SEN_GATE },
-      { "SEN_ITEM",     VertexType::SEN_ITEM },
-      { "VAR",          VertexType::VAR },
-      { "WIRE",         VertexType::WIRE },
-      { "PORT",         VertexType::PORT },
-      { "C_FUNC",       VertexType::C_FUNC },
+inline VertexAstType getVertexAstType(const std::string &name) {
+  static std::map<std::string, VertexAstType> mappings {
+      { "LOGIC",        VertexAstType::LOGIC },
+      { "ASSIGN",       VertexAstType::ASSIGN },
+      { "ASSIGN_ALIAS", VertexAstType::ASSIGN_ALIAS },
+      { "ASSIGN_DLY",   VertexAstType::ASSIGN_DLY },
+      { "ASSIGN_W",     VertexAstType::ASSIGN_W },
+      { "ALWAYS",       VertexAstType::ALWAYS },
+      { "INITIAL",      VertexAstType::INITIAL },
+      { "REG_SRC",      VertexAstType::REG_SRC },
+      { "REG_DST",      VertexAstType::REG_DST },
+      { "SEN_GATE",     VertexAstType::SEN_GATE },
+      { "SEN_ITEM",     VertexAstType::SEN_ITEM },
+      { "VAR",          VertexAstType::VAR },
+      { "WIRE",         VertexAstType::WIRE },
+      { "PORT",         VertexAstType::PORT },
+      { "C_FUNC",       VertexAstType::C_FUNC },
   };
   auto it = mappings.find(name);
-  return (it != mappings.end()) ? it->second : VertexType::INVALID;
+  return (it != mappings.end()) ? it->second : VertexAstType::INVALID;
 }
 
-inline const char *getVertexTypeStr(VertexType type) {
+inline const char *getVertexAstTypeStr(VertexAstType type) {
   switch (type) {
-    case VertexType::LOGIC:        return "LOGIC";
-    case VertexType::ASSIGN:       return "ASSIGN";
-    case VertexType::ASSIGN_ALIAS: return "ASSIGN_ALIAS";
-    case VertexType::ASSIGN_DLY:   return "ASSIGN_DLY";
-    case VertexType::ASSIGN_W:     return "ASSIGN_W";
-    case VertexType::ALWAYS:       return "ALWAYS";
-    case VertexType::INITIAL:      return "INITIAL";
-    case VertexType::REG_SRC:      return "REG_SRC";
-    case VertexType::REG_DST:      return "REG_DST";
-    case VertexType::SEN_GATE:     return "SEN_GATE";
-    case VertexType::SEN_ITEM:     return "SEN_ITEM";
-    case VertexType::VAR:          return "VAR";
-    case VertexType::WIRE:         return "WIRE";
-    case VertexType::PORT:         return "PORT";
-    case VertexType::C_FUNC:       return "C_FUNC";
-    case VertexType::INVALID:      return "INVALID";
-    default:                       return "UNKNOWN";
+    case VertexAstType::LOGIC:        return "LOGIC";
+    case VertexAstType::ASSIGN:       return "ASSIGN";
+    case VertexAstType::ASSIGN_ALIAS: return "ASSIGN_ALIAS";
+    case VertexAstType::ASSIGN_DLY:   return "ASSIGN_DLY";
+    case VertexAstType::ASSIGN_W:     return "ASSIGN_W";
+    case VertexAstType::ALWAYS:       return "ALWAYS";
+    case VertexAstType::INITIAL:      return "INITIAL";
+    case VertexAstType::REG_SRC:      return "REG_SRC";
+    case VertexAstType::REG_DST:      return "REG_DST";
+    case VertexAstType::SEN_GATE:     return "SEN_GATE";
+    case VertexAstType::SEN_ITEM:     return "SEN_ITEM";
+    case VertexAstType::VAR:          return "VAR";
+    case VertexAstType::WIRE:         return "WIRE";
+    case VertexAstType::PORT:         return "PORT";
+    case VertexAstType::C_FUNC:       return "C_FUNC";
+    case VertexAstType::INVALID:      return "INVALID";
+    default:                          return "UNKNOWN";
   }
 }
 

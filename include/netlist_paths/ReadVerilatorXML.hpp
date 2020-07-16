@@ -65,7 +65,7 @@ private:
   VertexDesc lookupVarVertex(const std::string &name);
   void newVar(XMLNode *node);
   void newScope(XMLNode *node);
-  void newStatement(XMLNode *node, VertexType);
+  void newStatement(XMLNode *node, VertexAstType);
   void newVarRef(XMLNode *node);
   void visitNode(XMLNode *node);
   void visitModule(XMLNode *node);

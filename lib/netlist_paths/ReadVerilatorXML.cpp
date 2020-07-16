@@ -165,7 +165,7 @@ void ReadVerilatorXML::newVar(XMLNode *node) {
     isParam = true;
     paramValue = node->first_node()->first_attribute("name")->value();
   }
-  auto vertex = netlist->addVarVertex(VertexType::VAR,
+  auto vertex = netlist->addVarVertex(VertexAstType::VAR,
                                       direction,
                                       location,
                                       dtypeMappings[dtypeID],
@@ -176,8 +176,8 @@ void ReadVerilatorXML::newVar(XMLNode *node) {
   DEBUG(std::cout << "Add var '" << name << "' to scope\n");
 }
 
-void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
-  DEBUG(std::cout << "New statement: " << getVertexTypeStr(vertexType) << "\n");
+void ReadVerilatorXML::newStatement(XMLNode *node, VertexAstType vertexType) {
+  DEBUG(std::cout << "New statement: " << getVertexAstTypeStr(vertexType) << "\n");
   // A statment must have a scope for variable references to occur in.
   if (currentScope) {
     logicParents.push(std::move(currentLogic));
@@ -190,12 +190,12 @@ void ReadVerilatorXML::newStatement(XMLNode *node, VertexType vertexType) {
       auto vertexParent = logicParents.top()->getVertex();
       netlist->addEdge(vertexParent, vertex);
       DEBUG(std::cout << "Edge from parent logic to "
-                      << getVertexTypeStr(vertexType) << "\n");
+                      << getVertexAstTypeStr(vertexType) << "\n");
     }
-    if (vertexType == VertexType::ASSIGN ||
-        vertexType == VertexType::ASSIGN_ALIAS ||
-        vertexType == VertexType::ASSIGN_DLY ||
-        vertexType == VertexType::ASSIGN_W) {
+    if (vertexType == VertexAstType::ASSIGN ||
+        vertexType == VertexAstType::ASSIGN_ALIAS ||
+        vertexType == VertexAstType::ASSIGN_DLY ||
+        vertexType == VertexAstType::ASSIGN_W) {
       // Handle assignments to distinguish L and R values.
       assert(numChildren(node) == 2 &&
              "assign statement has more than 2 children");
@@ -260,37 +260,37 @@ void ReadVerilatorXML::visitScope(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitAssign(XMLNode *node) {
-  newStatement(node, VertexType::ASSIGN);
+  newStatement(node, VertexAstType::ASSIGN);
 }
 
 void ReadVerilatorXML::visitAssignDly(XMLNode *node) {
   isDelayedAssign = true;
-  newStatement(node, VertexType::ASSIGN_DLY);
+  newStatement(node, VertexAstType::ASSIGN_DLY);
   isDelayedAssign = false;
 }
 
 void ReadVerilatorXML::visitAlways(XMLNode *node) {
-  newStatement(node, VertexType::ALWAYS);
+  newStatement(node, VertexAstType::ALWAYS);
 }
 
 void ReadVerilatorXML::visitInitial(XMLNode *node) {
-  newStatement(node, VertexType::INITIAL);
+  newStatement(node, VertexAstType::INITIAL);
 }
 
 void ReadVerilatorXML::visitSenItem(XMLNode *node) {
   if (currentLogic) {
     iterateChildren(node);
   } else {
-    newStatement(node, VertexType::SEN_ITEM);
+    newStatement(node, VertexAstType::SEN_ITEM);
   }
 }
 
 void ReadVerilatorXML::visitSenGate(XMLNode *node) {
-  newStatement(node, VertexType::SEN_GATE);
+  newStatement(node, VertexAstType::SEN_GATE);
 }
 
 void ReadVerilatorXML::visitCFunc(XMLNode *node) {
-  newStatement(node, VertexType::C_FUNC);
+  newStatement(node, VertexAstType::C_FUNC);
 }
 
 void ReadVerilatorXML::visitVar(XMLNode *node) {
