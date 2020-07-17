@@ -6,10 +6,10 @@ using namespace netlist_paths;
 int NetlistPaths::maxNameLength(const std::vector<VertexDesc> &names) const {
   size_t maxLength = 0;
   for (auto v : names) {
-    if (netlist->getVertex(v).canIgnore()) {
+    if (netlist.getVertex(v).canIgnore()) {
       continue;
     }
-    maxLength = std::max(maxLength, netlist->getVertex(v).name.size());
+    maxLength = std::max(maxLength, netlist.getVertex(v).name.size());
   }
   return static_cast<int>(maxLength);
 }
@@ -35,3 +35,54 @@ void NetlistPaths::printNames() const {
   //            << "\n";
   //}
 }
+
+///// Pretty print a path (some sequence of vertices).
+//void Netlist::printPathReport(const Path &path) const {
+//  int maxWidth = maxNameLength(path) + 1;
+//  // Print each vertex on the path.
+//  for (auto v : path) {
+//    if (canIgnore(graph[v]))
+//      continue;
+//    auto srcPath = netlist_paths::options.fullFileNames ? fs::path(graph[v].location.getFilename())
+//                                                        : fs::path(graph[v].location.getFilename()).filename();
+//    if (!netlist_paths::options.reportLogic) {
+//      if (!isLogic(graph[v])) {
+//        std::cout << "  " << std::left
+//                  << std::setw(maxWidth)
+//                  << graph[v].name
+//                  << srcPath.string() << "\n";
+//      }
+//    } else {
+//      if (isLogic(graph[v])) {
+//        std::cout << "  " << std::left
+//                  << std::setw(maxWidth)
+//                  << getVertexAstTypeStr(graph[v].type)
+//                  << std::setw(VERTEX_TYPE_STR_MAX_LEN)
+//                  << "LOGIC"
+//                  << srcPath.string() << "\n";
+//      } else {
+//        std::cout << "  " << std::left
+//                  << std::setw(maxWidth)
+//                  << graph[v].name
+//                  << std::setw(VERTEX_TYPE_STR_MAX_LEN)
+//                  << getVertexAstTypeStr(graph[v].type)
+//                  << srcPath.string() << "\n";
+//      }
+//    }
+//  }
+//}
+//
+///// Print a collection of paths.
+//void Netlist::
+//printPathReport(const std::vector<Path> &paths) const {
+//  int pathCount = 0;
+//  for (auto &path : paths) {
+//    if (!path.empty()) {
+//      std::cout << "Path " << ++pathCount << "\n";
+//      printPathReport(path);
+//      std::cout << "\n";
+//    }
+//  }
+//  std::cout << "Found " << pathCount << " path(s)\n";
+//}
+//

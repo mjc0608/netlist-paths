@@ -133,8 +133,6 @@ void Netlist::dumpDotFile(const std::string &outputFilename) const {
   if (!outputFile.is_open()) {
     throw Exception(std::string("unable to open ")+outputFilename);
   }
-//  // Write graphviz format.
-//  boost::write_graphviz_dp(outputFile, graph, dp, /*node_id=*/"id");
   // Loop over all vertices and print properties.
   outputFile << "digraph netlist {\n";
   BGL_FORALL_VERTICES(v, graph, Graph) {
@@ -171,13 +169,13 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
       }
     }
   }
-  return boost::graph_traits<Graph>::null_vertex();
+  return nullVertex();
 }
 
 //// FIXME: Move exception logic into tool.
 //VertexDesc Netlist::getStartVertexExcept(const std::string &name) const {
 //  auto vertex = getStartVertex(name);
-//  if (vertex == boost::graph_traits<Graph>::null_vertex()) {
+//  if (vertex == nullVertex()) {
 //    throw Exception(std::string("could not find vertex ")+name);
 //  } else {
 //    return vertex;
@@ -187,7 +185,7 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //// FIXME: Move exception logic into tool.
 //VertexDesc Netlist::getEndVertexExcept(const std::string &name) const {
 //  auto vertex = getEndVertex(name);
-//  if (vertex == boost::graph_traits<Graph>::null_vertex()) {
+//  if (vertex == nullVertex()) {
 //    throw Exception(std::string("could not find vertex ")+name);
 //  } else {
 //    return vertex;
@@ -197,7 +195,7 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //// FIXME: Move exception logic into tool.
 //VertexDesc Netlist::getMidVertexExcept(const std::string &name) const {
 //  auto vertex = getMidVertex(name);
-//  if (vertex == boost::graph_traits<Graph>::null_vertex()) {
+//  if (vertex == nullVertex()) {
 //    throw Exception(std::string("could not find vertex ")+name);
 //  } else {
 //    return vertex;
@@ -258,56 +256,6 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //  }
 //}
 
-///// Pretty print a path (some sequence of vertices).
-//void Netlist::printPathReport(const Path &path) const {
-//  int maxWidth = maxNameLength(path) + 1;
-//  // Print each vertex on the path.
-//  for (auto v : path) {
-//    if (canIgnore(graph[v]))
-//      continue;
-//    auto srcPath = netlist_paths::options.fullFileNames ? fs::path(graph[v].location.getFilename())
-//                                                        : fs::path(graph[v].location.getFilename()).filename();
-//    if (!netlist_paths::options.reportLogic) {
-//      if (!isLogic(graph[v])) {
-//        std::cout << "  " << std::left
-//                  << std::setw(maxWidth)
-//                  << graph[v].name
-//                  << srcPath.string() << "\n";
-//      }
-//    } else {
-//      if (isLogic(graph[v])) {
-//        std::cout << "  " << std::left
-//                  << std::setw(maxWidth)
-//                  << getVertexAstTypeStr(graph[v].type)
-//                  << std::setw(VERTEX_TYPE_STR_MAX_LEN)
-//                  << "LOGIC"
-//                  << srcPath.string() << "\n";
-//      } else {
-//        std::cout << "  " << std::left
-//                  << std::setw(maxWidth)
-//                  << graph[v].name
-//                  << std::setw(VERTEX_TYPE_STR_MAX_LEN)
-//                  << getVertexAstTypeStr(graph[v].type)
-//                  << srcPath.string() << "\n";
-//      }
-//    }
-//  }
-//}
-//
-///// Print a collection of paths.
-//void Netlist::
-//printPathReport(const std::vector<Path> &paths) const {
-//  int pathCount = 0;
-//  for (auto &path : paths) {
-//    if (!path.empty()) {
-//      std::cout << "Path " << ++pathCount << "\n";
-//      printPathReport(path);
-//      std::cout << "\n";
-//    }
-//  }
-//  std::cout << "Found " << pathCount << " path(s)\n";
-//}
-//
 ///// Report all paths fanning out from a net/register/port.
 //std::vector<Path> Netlist::
 //getAllFanOut(VertexDesc startVertex) const {
@@ -470,8 +418,8 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //  // Check that the start and end points exist.
 //  auto startPoint = getStartVertex(start);
 //  auto endPoint = getEndVertex(end);
-//  if (startPoint == boost::graph_traits<Graph>::null_vertex() ||
-//      endPoint == boost::graph_traits<Graph>::null_vertex()) {
+//  if (startPoint == nullVertex() ||
+//      endPoint == nullVertex()) {
 //    return false;
 //  }
 //  // Check the path exists.

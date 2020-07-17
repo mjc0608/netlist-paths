@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <boost/test/unit_test.hpp>
-#include <netlist_paths/Netlist.hpp>
+#include <netlist_paths/NetlistPaths.hpp>
 
 struct TestContext {
   TestContext() {}
@@ -21,11 +21,7 @@ struct TestContext {
                      defines,
                      inputFiles,
                      outTemp.native());
-    auto vlXMLReader = netlist_paths::ReadVerilatorXML();
-    auto netlist = std::unique_ptr<netlist_paths::Netlist>(
-                       vlXMLReader.readXML(outTemp.native()));
-    netlist->mergeDuplicateVertices();
-    netlist->checkGraph();
+    auto netlistPaths = netlist_paths::NetlistPaths(outTemp.native());
     fs::remove(outTemp);
   }
   /// Check all names are unique.

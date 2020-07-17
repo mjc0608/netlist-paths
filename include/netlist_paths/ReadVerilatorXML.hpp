@@ -47,7 +47,9 @@ public:
 
 class ReadVerilatorXML {
 private:
-  std::unique_ptr<Netlist> netlist;
+  Netlist &netlist;
+  std::vector<File> &files;
+  std::vector<DType> &dtypes;
   std::vector<std::unique_ptr<VarNode>> vars;
   std::map<std::string, std::shared_ptr<File>> fileIdMappings;
   std::map<std::string, std::shared_ptr<DType>> dtypeMappings;
@@ -58,6 +60,14 @@ private:
   bool isDelayedAssign;
   bool isLValue;
 
+  std::shared_ptr<File> addFile(File file) {
+    files.push_back(file);
+    return std::make_shared<File>(files.back());
+  }
+  std::shared_ptr<DType> addDtype(DType dtype) {
+    dtypes.push_back(dtype);
+    return std::make_shared<DType>(dtypes.back());
+  }
   std::size_t numChildren(XMLNode *node);
   void dispatchVisitor(XMLNode *node);
   void iterateChildren(XMLNode *node);
@@ -87,16 +97,14 @@ private:
   std::pair<std::string, std::string> visitRange(XMLNode *node);
   void visitArrayDtype(XMLNode *node, bool packed);
   void visitStructDtype(XMLNode *node);
+  void readXML(const std::string &filename);
 
 public:
-  ReadVerilatorXML() :
-      netlist(std::make_unique<Netlist>()),
-      currentLogic(nullptr),
-      currentScope(nullptr),
-      isDelayedAssign(false),
-      isLValue(false) {}
-  // Helper function to constuct a Netlist from Verilator XML output.
-  std::unique_ptr<Netlist> readXML(const std::string &filename);
+  ReadVerilatorXML() = delete;
+  ReadVerilatorXML(Netlist &netlist,
+                   std::vector<File> &files,
+                   std::vector<DType> &dtypes,
+                   const std::string &filename);
 };
 
 } // End netlist_paths namespace.

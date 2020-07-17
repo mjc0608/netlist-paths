@@ -22,11 +22,6 @@ class Netlist {
 private:
   Graph graph;
   std::string topName;
-  std::vector<File> files;
-  std::vector<DType> dtypes;
-
-  bool vertexCompare(const VertexDesc a, const VertexDesc b) const;
-  bool vertexEqual(const VertexDesc a, const VertexDesc b) const;
 
   VertexDesc getVertexDesc(const std::string &name,
                            VertexGraphType graphType) const;
@@ -43,14 +38,6 @@ private:
 
 public:
   Netlist() {}
-  std::shared_ptr<File> addFile(File file) {
-    files.push_back(file);
-    return std::make_shared<File>(files.back());
-  }
-  std::shared_ptr<DType> addDtype(DType dtype) {
-    dtypes.push_back(dtype);
-    return std::make_shared<DType>(dtypes.back());
-  }
   VertexDesc addLogicVertex(VertexAstType type, Location location) {
     auto vertex = Vertex(type, location);
     return boost::add_vertex(vertex, graph);
@@ -78,8 +65,6 @@ public:
   void checkGraph() const;
   void dumpDotFile(const std::string &outputFilename) const;
   std::vector<VertexDesc> getNames() const;
-  //void printPathReport(const Path &path) const;
-  //void printPathReport(const std::vector<Path> &paths) const;
   VertexDesc getStartVertex(const std::string &name) const {
     return getVertexDesc(name, VertexGraphType::START_POINT);
   }
@@ -109,7 +94,7 @@ public:
   //  return graph[vertex].name;
   //}
   //bool pathExists(const std::string &start, const std::string &end);
-  Vertex getVertex(VertexDesc vertexId) { return graph[vertexId]; }
+  Vertex getVertex(VertexDesc vertexId) const { return graph[vertexId]; }
 };
 
 } // End namespace.

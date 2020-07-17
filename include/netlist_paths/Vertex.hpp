@@ -9,6 +9,7 @@
 
 namespace netlist_paths {
 
+// Corresponding type of vertex in the Verilator AST.
 enum class VertexAstType {
   LOGIC,
   ASSIGN,
@@ -28,6 +29,7 @@ enum class VertexAstType {
   INVALID
 };
 
+// Vertex categorisation within the netlist graph.
 enum class VertexGraphType {
   REG,
   SRC_REG,
