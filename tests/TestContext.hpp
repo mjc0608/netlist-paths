@@ -8,9 +8,10 @@
 
 struct TestContext {
   TestContext() {}
-  netlist_paths::Netlist netlist;
+  std::unique_ptr<netlist_paths::NetlistPaths> np;
   /// Compile a test and create a netlist object.
-  void compile(const std::string &inFilename) {
+  void compile(const std::string &inFilename,
+               const std::string &topName) {
     auto testPath = fs::path(testPrefix) / inFilename;
     std::vector<std::string> includes = {};
     std::vector<std::string> defines = {};
@@ -21,27 +22,33 @@ struct TestContext {
                      defines,
                      inputFiles,
                      outTemp.native());
-    auto netlistPaths = netlist_paths::NetlistPaths(outTemp.native());
+    np = std::make_unique<netlist_paths::NetlistPaths>(outTemp.native());
     fs::remove(outTemp);
+    uniqueNames();
+    qualifiedNames(topName);
   }
   /// Check all names are unique.
   void uniqueNames() {
-    //auto vertices = netlist.getNames();
-    //std::vector<std::string> names;
-    //for (auto v : vertices)
-    //  names.push_back(netlist.getVertexName(v));
-    //auto last = std::unique(std::begin(names), std::end(names));
-    //names.erase(last, std::end(names));
-    //BOOST_TEST(vertices.size() == names.size());
+    auto vertices = np->getNamedVertices();
+    std::vector<std::string> names;
+    for (auto v : vertices) {
+      auto name = std::remove_reference<const netlist_paths::Vertex>::type(v).getName();
+      names.push_back(name);
+    }
+    auto last = std::unique(std::begin(names), std::end(names));
+    names.erase(last, std::end(names));
+    BOOST_TEST(vertices.size() == names.size());
   }
   /// Check all names are qualified with the top module name.
-  void qualifiedNames(const char *topName) {
-    //for (auto v : netlist.getNames()) {
-    //  BOOST_TEST(boost::starts_with(netlist.getVertexName(v), topName));
-    //}
+  void qualifiedNames(const std::string &topName) {
+    for (auto v : np->getNamedVertices()) {
+      auto name = std::remove_reference<const netlist_paths::Vertex>::type(v).getName();
+      BOOST_TEST(boost::starts_with(name, topName));
+    }
   }
-  //bool pathExists(const std::string &start,
-  //                const std::string &end) { return netlist.pathExists(start, end); }
+  bool regExists(const std::string &name) { return np->regExists(name); }
+  bool pathExists(const std::string &start,
+                  const std::string &end) { return np->pathExists(start, end); }
 };
 
 #endif // NETLIST_PATHS_TEST_CONTEXT_HPP

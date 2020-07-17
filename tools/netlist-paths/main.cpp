@@ -118,15 +118,15 @@ int main(int argc, char **argv) {
     }
     auto netlistPaths = netlist_paths::NetlistPaths(inputFiles.front());
 
-//    // Dump dot file.
-//    if (netlist_paths::options.dumpDotfile) {
-//      if (outputFilename == netlist_paths::DEFAULT_OUTPUT_FILENAME) {
-//         outputFilename += ".dot";
-//      }
-//      netlist.dumpDotFile(outputFilename);
-//      return 0;
-//    }
-//
+    // Dump dot file.
+    if (netlist_paths::options.dumpDotfile) {
+      if (outputFilename == netlist_paths::DEFAULT_OUTPUT_FILENAME) {
+         outputFilename += ".dot";
+      }
+      netlistPaths.dumpDotFile(outputFilename);
+      return 0;
+    }
+
 //    // Dump netlist names.
 //    if (netlist_paths::options.dumpNames) {
 //      auto vertices = netlist.getNames();

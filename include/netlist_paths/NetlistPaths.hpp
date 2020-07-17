@@ -20,9 +20,12 @@ public:
   NetlistPaths(const std::string &filename) {
     ReadVerilatorXML(netlist, files, dtypes, filename);
     netlist.mergeDuplicateVertices();
+    //netlist.annotateRegVertices();
     netlist.checkGraph();
   }
-  /// Waypoints.
+  //===--------------------------------------------------------------------===//
+  // Waypoints.
+  //===--------------------------------------------------------------------===//
   void addStartpoint(const std::string &name) {
     waypoints.push_back(netlist.getStartVertex(name));
   }
@@ -34,11 +37,18 @@ public:
   }
   std::size_t numWaypoints() const { return waypoints.size(); }
   void clearWaypoints() { waypoints.clear(); }
-  /// Names and types.
+  //===--------------------------------------------------------------------===//
+  // Reporting of names, types and paths.
+  //===--------------------------------------------------------------------===//
   void printNames() const;
   //void printPathReport(const Path &path) const;
   //void printPathReport(const std::vector<Path> &paths) const;
-  /// Basic path querying.
+  //===--------------------------------------------------------------------===//
+  // Basic path querying.
+  //===--------------------------------------------------------------------===//
+  const std::string &getVertexName(VertexDesc vertex) const {
+    return netlist.getVertex(vertex).getName();
+  }
   bool startpointExists(const std::string &name) const noexcept {
     return netlist.getStartVertex(name) != netlist.nullVertex();
   }
@@ -48,6 +58,27 @@ public:
   bool regExists(const std::string &name) const noexcept {
     return netlist.getRegVertex(name) != netlist.nullVertex();
   }
+  bool pathExists(const std::string &start, const std::string &end) {
+    clearWaypoints();
+    // Check that the start and end points exist.
+    auto startPoint = netlist.getStartVertex(start);
+    auto endPoint = netlist.getEndVertex(end);
+    if (startPoint == netlist.nullVertex() ||
+        endPoint == netlist.nullVertex()) {
+      return false;
+    }
+    // Check the path exists.
+    waypoints.push_back(startPoint);
+    waypoints.push_back(endPoint);
+    return !netlist.getAnyPointToPoint(waypoints).empty();
+  }
+  //===--------------------------------------------------------------------===//
+  // Netlist access.
+  //===--------------------------------------------------------------------===//
+  void dumpDotFile(const std::string &outputFilename) const {
+    netlist.dumpDotFile(outputFilename);
+  }
+  std::vector<std::reference_wrapper<const Vertex>> getNamedVertices() const;
 };
 
 }; // End namespace.

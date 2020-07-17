@@ -9,14 +9,14 @@ BOOST_PYTHON_MODULE(py_netlist_paths)
 
   int (RunVerilator::*run)(const std::string&, const std::string&) const = &RunVerilator::run;
 
-  class_<RunVerilator, boost::noncopyable>("RunVerilator")
-    .def(init<const std::string&>())
+  class_<RunVerilator, boost::noncopyable>("RunVerilator",
+                                           init<const std::string&>())
     .def("run", run);
 
   class_<NetlistPaths, boost::noncopyable>("NetlistPaths",
-                                           init<const std::string&>());
-  //  .def("reg_exists",        &Netlist::regExists)
-  //  .def("startpoint_exists", &Netlist::startpointExists)
-  //  .def("endpoint_exists",   &Netlist::endpointExists)
-  //  .def("path_exists",       &Netlist::pathExists);
+                                           init<const std::string&>())
+    .def("reg_exists",        &NetlistPaths::regExists)
+    .def("startpoint_exists", &NetlistPaths::startpointExists)
+    .def("endpoint_exists",   &NetlistPaths::endpointExists)
+    .def("path_exists",       &NetlistPaths::pathExists);
 }

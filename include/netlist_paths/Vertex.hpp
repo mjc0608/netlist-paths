@@ -3,11 +3,16 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 #include <boost/algorithm/string.hpp>
 #include "netlist_paths/Location.hpp"
 #include "netlist_paths/DTypes.hpp"
 
 namespace netlist_paths {
+
+//===----------------------------------------------------------------------===//
+// Vertex type enums.
+//===----------------------------------------------------------------------===//
 
 // Corresponding type of vertex in the Verilator AST.
 enum class VertexAstType {
@@ -18,8 +23,8 @@ enum class VertexAstType {
   ASSIGN_W,
   ALWAYS,
   INITIAL,
-  REG_SRC,
-  REG_DST,
+  REG,
+  //REG_DST,
   SEN_GATE,
   SEN_ITEM,
   VAR,
@@ -45,6 +50,78 @@ enum class VertexDirection {
   OUTPUT,
   INOUT
 };
+
+//===----------------------------------------------------------------------===//
+// Vertex type helper fuctions.
+//===----------------------------------------------------------------------===//
+
+inline VertexAstType getVertexAstType(const std::string &name) {
+  static std::map<std::string, VertexAstType> mappings {
+      { "LOGIC",        VertexAstType::LOGIC },
+      { "ASSIGN",       VertexAstType::ASSIGN },
+      { "ASSIGN_ALIAS", VertexAstType::ASSIGN_ALIAS },
+      { "ASSIGN_DLY",   VertexAstType::ASSIGN_DLY },
+      { "ASSIGN_W",     VertexAstType::ASSIGN_W },
+      { "ALWAYS",       VertexAstType::ALWAYS },
+      { "INITIAL",      VertexAstType::INITIAL },
+      { "REG",          VertexAstType::REG },
+      //{ "REG_DST",      VertexAstType::REG_DST },
+      { "SEN_GATE",     VertexAstType::SEN_GATE },
+      { "SEN_ITEM",     VertexAstType::SEN_ITEM },
+      { "VAR",          VertexAstType::VAR },
+      { "WIRE",         VertexAstType::WIRE },
+      { "PORT",         VertexAstType::PORT },
+      { "C_FUNC",       VertexAstType::C_FUNC },
+  };
+  auto it = mappings.find(name);
+  return (it != mappings.end()) ? it->second : VertexAstType::INVALID;
+}
+
+inline const char *getVertexAstTypeStr(VertexAstType type) {
+  switch (type) {
+    case VertexAstType::LOGIC:        return "LOGIC";
+    case VertexAstType::ASSIGN:       return "ASSIGN";
+    case VertexAstType::ASSIGN_ALIAS: return "ASSIGN_ALIAS";
+    case VertexAstType::ASSIGN_DLY:   return "ASSIGN_DLY";
+    case VertexAstType::ASSIGN_W:     return "ASSIGN_W";
+    case VertexAstType::ALWAYS:       return "ALWAYS";
+    case VertexAstType::INITIAL:      return "INITIAL";
+    case VertexAstType::REG:          return "REG";
+    //case VertexAstType::REG_DST:      return "REG_DST";
+    case VertexAstType::SEN_GATE:     return "SEN_GATE";
+    case VertexAstType::SEN_ITEM:     return "SEN_ITEM";
+    case VertexAstType::VAR:          return "VAR";
+    case VertexAstType::WIRE:         return "WIRE";
+    case VertexAstType::PORT:         return "PORT";
+    case VertexAstType::C_FUNC:       return "C_FUNC";
+    case VertexAstType::INVALID:      return "INVALID";
+    default:                          return "UNKNOWN";
+  }
+}
+
+inline VertexDirection getVertexDirection(const std::string &direction) {
+  static std::map<std::string, VertexDirection> mappings {
+      { "input",  VertexDirection::INPUT },
+      { "output", VertexDirection::OUTPUT },
+      { "inout",  VertexDirection::INOUT },
+  };
+  auto it = mappings.find(direction);
+  return (it != mappings.end()) ? it->second : VertexDirection::NONE;
+}
+
+inline const char *getVertexDirectionStr(VertexDirection direction) {
+  switch (direction) {
+    case VertexDirection::NONE:   return "NONE";
+    case VertexDirection::INPUT:  return "INPUT";
+    case VertexDirection::OUTPUT: return "OUTPUT";
+    case VertexDirection::INOUT:  return "INOUT";
+    default:                      return "UNKNOWN";
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Vertex
+//===----------------------------------------------------------------------===//
 
 struct Vertex {
   //unsigned long long id;
@@ -83,7 +160,9 @@ struct Vertex {
       isParam(isParam),
       paramValue(paramValue),
       isTop(determineIsTop(name)),
-      deleted(false) {}
+      deleted(false) {
+
+  }
   static bool determineIsTop(const std::string &name) {
     // module.name or name is top level, but module.submodule.name is not.
     std::vector<std::string> tokens;
@@ -117,7 +196,7 @@ struct Vertex {
   bool isGraphType(VertexGraphType type) const {
     switch (type) {
       case VertexGraphType::REG:         return isReg();
-      case VertexGraphType::SRC_REG:     return isSrcReg();
+      //case VertexGraphType::SRC_REG:     return isSrcReg();
       case VertexGraphType::LOGIC:       return isLogic();
       case VertexGraphType::START_POINT: return isStartPoint();
       case VertexGraphType::END_POINT:   return isEndPoint();
@@ -125,10 +204,14 @@ struct Vertex {
       default:                           return false;
     }
   }
-  inline bool isSrcReg() const {
-    return !deleted &&
-           astType == VertexAstType::REG_SRC;
-  }
+  //inline bool isSrcReg() const {
+  //  return !deleted &&
+  //         astType == VertexAstType::REG_SRC;
+  //}
+  //inline bool isDstReg() const {
+  //  return !deleted &&
+  //         astType == VertexAstType::REG_DST;
+  //}
   inline bool isLogic() const {
     return astType == VertexAstType::LOGIC ||
            astType == VertexAstType::ASSIGN ||
@@ -140,20 +223,22 @@ struct Vertex {
            astType == VertexAstType::SEN_GATE ||
            astType == VertexAstType::SEN_ITEM;
   }
+  inline bool isParameter() const {
+    return isParam;
+  }
   inline bool isReg() const {
     return !deleted &&
-           (astType == VertexAstType::REG_DST ||
-            astType == VertexAstType::REG_SRC);
+           astType == VertexAstType::REG;
   }
   inline bool isStartPoint() const {
     return !deleted &&
-           (astType == VertexAstType::REG_SRC ||
+           (astType == VertexAstType::REG ||
             (direction == VertexDirection::INPUT && isTop) ||
             (direction == VertexDirection::INOUT && isTop));
   }
   inline bool isEndPoint() const {
     return !deleted &&
-           (astType == VertexAstType::REG_DST ||
+           (astType == VertexAstType::REG ||
             (direction == VertexDirection::OUTPUT && isTop) ||
             (direction == VertexDirection::INOUT && isTop));
   }
@@ -172,81 +257,20 @@ struct Vertex {
   /// Visible vertices are displayed in the name dump.
   inline bool isVisible() const {
     return !isLogic() &&
-           !isSrcReg() &&
+           //!isSrcReg() &&
            !canIgnore() &&
            !isDeleted();
   }
+  /// Return a description of this vertex.
+  std::string toString() const {
+    // TODO: expand on this for different vertex types.
+    return std::string(getVertexAstTypeStr(astType));
+  }
   bool isDeleted() const { return deleted; }
   void setDeleted() { deleted = true; }
+  //void setSrcReg() { astType = VertexAstType::REG_SRC; }
+  const std::string &getName() const { return name; }
 };
-
-//===----------------------------------------------------------------------===//
-// Vertex type helper fuctions.
-//===----------------------------------------------------------------------===//
-
-inline VertexAstType getVertexAstType(const std::string &name) {
-  static std::map<std::string, VertexAstType> mappings {
-      { "LOGIC",        VertexAstType::LOGIC },
-      { "ASSIGN",       VertexAstType::ASSIGN },
-      { "ASSIGN_ALIAS", VertexAstType::ASSIGN_ALIAS },
-      { "ASSIGN_DLY",   VertexAstType::ASSIGN_DLY },
-      { "ASSIGN_W",     VertexAstType::ASSIGN_W },
-      { "ALWAYS",       VertexAstType::ALWAYS },
-      { "INITIAL",      VertexAstType::INITIAL },
-      { "REG_SRC",      VertexAstType::REG_SRC },
-      { "REG_DST",      VertexAstType::REG_DST },
-      { "SEN_GATE",     VertexAstType::SEN_GATE },
-      { "SEN_ITEM",     VertexAstType::SEN_ITEM },
-      { "VAR",          VertexAstType::VAR },
-      { "WIRE",         VertexAstType::WIRE },
-      { "PORT",         VertexAstType::PORT },
-      { "C_FUNC",       VertexAstType::C_FUNC },
-  };
-  auto it = mappings.find(name);
-  return (it != mappings.end()) ? it->second : VertexAstType::INVALID;
-}
-
-inline const char *getVertexAstTypeStr(VertexAstType type) {
-  switch (type) {
-    case VertexAstType::LOGIC:        return "LOGIC";
-    case VertexAstType::ASSIGN:       return "ASSIGN";
-    case VertexAstType::ASSIGN_ALIAS: return "ASSIGN_ALIAS";
-    case VertexAstType::ASSIGN_DLY:   return "ASSIGN_DLY";
-    case VertexAstType::ASSIGN_W:     return "ASSIGN_W";
-    case VertexAstType::ALWAYS:       return "ALWAYS";
-    case VertexAstType::INITIAL:      return "INITIAL";
-    case VertexAstType::REG_SRC:      return "REG_SRC";
-    case VertexAstType::REG_DST:      return "REG_DST";
-    case VertexAstType::SEN_GATE:     return "SEN_GATE";
-    case VertexAstType::SEN_ITEM:     return "SEN_ITEM";
-    case VertexAstType::VAR:          return "VAR";
-    case VertexAstType::WIRE:         return "WIRE";
-    case VertexAstType::PORT:         return "PORT";
-    case VertexAstType::C_FUNC:       return "C_FUNC";
-    case VertexAstType::INVALID:      return "INVALID";
-    default:                          return "UNKNOWN";
-  }
-}
-
-inline VertexDirection getVertexDirection(const std::string &direction) {
-  static std::map<std::string, VertexDirection> mappings {
-      { "input",  VertexDirection::INPUT },
-      { "output", VertexDirection::OUTPUT },
-      { "inout",  VertexDirection::INOUT },
-  };
-  auto it = mappings.find(direction);
-  return (it != mappings.end()) ? it->second : VertexDirection::NONE;
-}
-
-inline const char *getVertexDirectionStr(VertexDirection direction) {
-  switch (direction) {
-    case VertexDirection::NONE:   return "NONE";
-    case VertexDirection::INPUT:  return "INPUT";
-    case VertexDirection::OUTPUT: return "OUTPUT";
-    case VertexDirection::INOUT:  return "INOUT";
-    default:                      return "UNKNOWN";
-  }
-}
 
 } // End netlist_paths namespace.
 

@@ -25,74 +25,64 @@ BOOST_FIXTURE_TEST_CASE(verilator, TestContext) {
 }
 
 BOOST_FIXTURE_TEST_CASE(adder, TestContext) {
-  BOOST_CHECK_NO_THROW(compile("adder.sv"));
-  uniqueNames();
-  qualifiedNames("adder");
-  //// Check paths between all start and end points are reported.
-  //auto startPoints = {"adder.i_a", "adder.i_b"};
-  //auto endPoints = {"adder.o_sum", "adder.o_co"};
-  //for (auto s : startPoints) {
-  //  for (auto e : endPoints) {
-  //    BOOST_TEST(pathExists(s, e));
-  //    BOOST_TEST(!pathExists(e, s));
-  //  }
-  //}
+  BOOST_CHECK_NO_THROW(compile("adder.sv", "adder"));
+  // Check paths between all start and end points are reported.
+  auto startPoints = {"i_a", "i_b"};
+  auto endPoints = {"o_sum", "o_co"};
+  for (auto s : startPoints) {
+    for (auto e : endPoints) {
+      BOOST_TEST(pathExists(s, e));
+      BOOST_TEST(!pathExists(e, s));
+    }
+  }
 }
 
 BOOST_FIXTURE_TEST_CASE(counter, TestContext) {
-  BOOST_CHECK_NO_THROW(compile("counter.sv"));
-  uniqueNames();
-  qualifiedNames("counter");
-  //// Registers.
-  //BOOST_TEST(netlist.regExists("counter/counter_q"));
-  //BOOST_TEST(netlist.regExists("counter_counter_q"));
-  //// Regex register.
-  //BOOST_TEST(netlist.regExists("counter_q"));
-  //// Paths
-  //BOOST_TEST(pathExists("counter.i_clk", "counter.counter_q"));
-  //BOOST_TEST(pathExists("counter.i_rst", "counter.counter_q"));
-  //BOOST_TEST(pathExists("counter.counter_q", "counter.o_count"));
-  //BOOST_TEST(!pathExists("counter.counter_q", "counter.o_wrap"));
-  //// TODO: check --from o_counter has no fan out paths
+  BOOST_CHECK_NO_THROW(compile("counter.sv", "counter"));
+  // Registers.
+  BOOST_TEST(regExists("counter/counter_q"));
+  BOOST_TEST(regExists("counter_counter_q"));
+  // Regex register.
+  BOOST_TEST(regExists("counter_q"));
+  // Paths
+  BOOST_TEST(pathExists("i_clk", "counter.counter_q"));
+  BOOST_TEST(pathExists("i_rst", "counter.counter_q"));
+  BOOST_TEST(pathExists("counter.counter_q", "o_count"));
+  BOOST_TEST(!pathExists("counter.counter_q", "o_wrap"));
+  // TODO: check --from o_counter has no fan out paths
 }
 
 BOOST_FIXTURE_TEST_CASE(fsm, TestContext) {
-  BOOST_CHECK_NO_THROW(compile("fsm.sv"));
-  uniqueNames();
-  qualifiedNames("fsm");
+  BOOST_CHECK_NO_THROW(compile("fsm.sv", "fsm"));
 }
 
 BOOST_FIXTURE_TEST_CASE(mux2, TestContext) {
-  BOOST_CHECK_NO_THROW(compile("mux2.sv"));
-  uniqueNames();
-  qualifiedNames("mux2");
+  BOOST_CHECK_NO_THROW(compile("mux2.sv", "mux2"));
 }
 
 BOOST_FIXTURE_TEST_CASE(pipeline_module, TestContext) {
-  BOOST_CHECK_NO_THROW(compile("pipeline_module.sv"));
-  uniqueNames();
-  qualifiedNames("pipeline");
+  BOOST_CHECK_NO_THROW(compile("pipeline_module.sv", "pipeline"));
   // Registers
-  //BOOST_TEST(netlist.regExists("pipeline.g_pipestage\\[0\\].u_pipestage.data_q")); // Hier dot
-  //BOOST_TEST(netlist.regExists("pipeline/g_pipestage\\[0\\]/u_pipestage/data_q")); // Hier slash
-  //BOOST_TEST(netlist.regExists("pipeline_g_pipestage\\[0\\]_u_pipestage_data_q")); // Flat
-  //BOOST_TEST(netlist.regExists("pipeline/g_pipestage\\[0\\]_u_pipestage_data_q")); // Mixed
-  //BOOST_TEST(netlist.regExists("g_pipestage\\[0\\]/u_pipestage_data_q")); // Mixed
-  //// Regexes
-  //BOOST_TEST(netlist.regExists("pipeline/.*/u_pipestage_data_q"));
-  //BOOST_TEST(netlist.regExists("pipeline/.*/data_q"));
-  //// Paths
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[0\\].u_pipestage.data_q", "pipeline.g_pipestage\\[1\\].u_pipestage.data_q"));
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[1\\].u_pipestage.data_q", "pipeline.g_pipestage\\[2\\].u_pipestage.data_q"));
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[2\\].u_pipestage.data_q", "pipeline.g_pipestage\\[3\\].u_pipestage.data_q"));
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[3\\].u_pipestage.data_q", "pipeline.g_pipestage\\[4\\].u_pipestage.data_q"));
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[4\\].u_pipestage.data_q", "pipeline.g_pipestage\\[5\\].u_pipestage.data_q"));
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[5\\].u_pipestage.data_q", "pipeline.g_pipestage\\[6\\].u_pipestage.data_q"));
-  //BOOST_TEST(pathExists("pipeline.g_pipestage\\[6\\].u_pipestage.data_q", "pipeline.g_pipestage\\[7\\].u_pipestage.data_q"));
+  BOOST_TEST(regExists("pipeline.g_pipestage\\[0\\].u_pipestage.data_q")); // Hier dot
+  BOOST_TEST(regExists("pipeline/g_pipestage\\[0\\]/u_pipestage/data_q")); // Hier slash
+  BOOST_TEST(regExists("pipeline_g_pipestage\\[0\\]_u_pipestage_data_q")); // Flat
+  BOOST_TEST(regExists("pipeline/g_pipestage\\[0\\]_u_pipestage_data_q")); // Mixed
+  BOOST_TEST(regExists("g_pipestage\\[0\\]/u_pipestage_data_q")); // Mixed
+  // Regexes
+  BOOST_TEST(regExists("pipeline/.*/u_pipestage_data_q"));
+  BOOST_TEST(regExists("pipeline/.*/data_q"));
+  // Paths
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[0\\].u_pipestage.data_q", "pipeline.g_pipestage\\[1\\].u_pipestage.data_q"));
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[1\\].u_pipestage.data_q", "pipeline.g_pipestage\\[2\\].u_pipestage.data_q"));
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[2\\].u_pipestage.data_q", "pipeline.g_pipestage\\[3\\].u_pipestage.data_q"));
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[3\\].u_pipestage.data_q", "pipeline.g_pipestage\\[4\\].u_pipestage.data_q"));
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[4\\].u_pipestage.data_q", "pipeline.g_pipestage\\[5\\].u_pipestage.data_q"));
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[5\\].u_pipestage.data_q", "pipeline.g_pipestage\\[6\\].u_pipestage.data_q"));
+  BOOST_TEST(pathExists("pipeline.g_pipestage\\[6\\].u_pipestage.data_q", "pipeline.g_pipestage\\[7\\].u_pipestage.data_q"));
 }
 
 BOOST_FIXTURE_TEST_CASE(vlvbound, TestContext) {
-  BOOST_CHECK_NO_THROW(compile("vlvbound.sv"));
+  //BOOST_CHECK_NO_THROW(compile("vlvbound.sv", "vlvbound"));
   // Test that the inlined tasks do not share a merged VlVbound node.
   // See https://www.veripool.org/boards/3/topics/2619
   //BOOST_TEST( pathExists("i_foo_current", "o_foo_inactive"));

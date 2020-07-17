@@ -14,6 +14,22 @@ int NetlistPaths::maxNameLength(const std::vector<VertexDesc> &names) const {
   return static_cast<int>(maxLength);
 }
 
+/// Dump unique names of vars/regs/wires in the netlist for searching.
+std::vector<std::reference_wrapper<const Vertex>> NetlistPaths::getNamedVertices() const {
+  std::vector<std::reference_wrapper<const Vertex>> vertices;
+  // Collect vertices.
+  for (auto vertexId : netlist.getAllVertices()) {
+    if (netlist.getVertex(vertexId).isVisible()) {
+      vertices.push_back(std::ref(netlist.getVertex(vertexId)));
+    }
+  }
+  // Sort them.
+  auto compare = [](const Vertex& a, const Vertex& b) {
+                   return a.compareLessThan(b); };
+  std::sort(vertices.begin(), vertices.end(), compare);
+  return vertices;
+}
+
 void NetlistPaths::printNames() const {
   //auto names = netlist->getNames();
   //// Print the output.

@@ -18,39 +18,39 @@ class TeastPyWrapper(unittest.TestCase):
         comp.run(os.path.join(defs.TEST_SRC_PREFIX, 'adder.sv'), 'netlist.xml')
         netlist = py_netlist_paths.NetlistPaths('netlist.xml')
         ## Check all valid paths are reported.
-        #self.assertTrue(graph.path_exists('adder.i_a', 'adder.o_sum'))
-        #self.assertTrue(graph.path_exists('adder.i_a', 'adder.o_co'))
-        #self.assertTrue(graph.path_exists('adder.i_b', 'adder.o_sum'))
-        #self.assertTrue(graph.path_exists('adder.i_b', 'adder.o_co'))
+        #self.assertTrue(netlist.path_exists('adder.i_a', 'adder.o_sum'))
+        #self.assertTrue(netlist.path_exists('adder.i_a', 'adder.o_co'))
+        #self.assertTrue(netlist.path_exists('adder.i_b', 'adder.o_sum'))
+        #self.assertTrue(netlist.path_exists('adder.i_b', 'adder.o_co'))
         ## Check for invalid paths.
-        #self.assertFalse(graph.path_exists('adder.o_sum', 'adder.i_a'))
-        #self.assertFalse(graph.path_exists('adder.o_co',  'adder.i_a'))
-        #self.assertFalse(graph.path_exists('adder.o_sum', 'adder.i_b'))
-        #self.assertFalse(graph.path_exists('adder.o_co',  'adder.i_b'))
+        #self.assertFalse(netlist.path_exists('adder.o_sum', 'adder.i_a'))
+        #self.assertFalse(netlist.path_exists('adder.o_co',  'adder.i_a'))
+        #self.assertFalse(netlist.path_exists('adder.o_sum', 'adder.i_b'))
+        #self.assertFalse(netlist.path_exists('adder.o_co',  'adder.i_b'))
 
     def test_counter(self):
         comp = py_netlist_paths.RunVerilator(defs.INSTALL_PREFIX)
         comp.run(os.path.join(defs.TEST_SRC_PREFIX, 'counter.sv'), 'netlist.xml')
         netlist = py_netlist_paths.NetlistPaths('netlist.xml')
         ## Register can be start or end point.
-        #self.assertTrue(graph.reg_exists('counter_q'))
-        #self.assertTrue(graph.startpoint_exists('counter_q'))
-        #self.assertTrue(graph.endpoint_exists('counter_q'))
+        #self.assertTrue(netlist.reg_exists('counter_q'))
+        #self.assertTrue(netlist.startpoint_exists('counter_q'))
+        #self.assertTrue(netlist.endpoint_exists('counter_q'))
         ## Output port can be endpoint only.
-        #self.assertFalse(graph.reg_exists('counter.o_count'))
-        #self.assertTrue(graph.endpoint_exists('counter.o_count'))
+        #self.assertFalse(netlist.reg_exists('counter.o_count'))
+        #self.assertTrue(netlist.endpoint_exists('counter.o_count'))
         ## A name that doesn't exist.
-        #self.assertFalse(graph.reg_exists('foo'))
-        #self.assertFalse(graph.startpoint_exists('foo'))
-        #self.assertFalse(graph.endpoint_exists('foo'))
+        #self.assertFalse(netlist.reg_exists('foo'))
+        #self.assertFalse(netlist.startpoint_exists('foo'))
+        #self.assertFalse(netlist.endpoint_exists('foo'))
         ## Check all valid paths are reported.
-        #self.assertTrue(graph.path_exists('counter.i_clk',     'counter.counter_q'));
-        #self.assertTrue(graph.path_exists('counter.i_rst',     'counter.counter_q'));
-        #self.assertTrue(graph.path_exists('counter.counter_q', 'counter.o_count'));
+        #self.assertTrue(netlist.path_exists('counter.i_clk',     'counter.counter_q'));
+        #self.assertTrue(netlist.path_exists('counter.i_rst',     'counter.counter_q'));
+        #self.assertTrue(netlist.path_exists('counter.counter_q', 'counter.o_count'));
         ## Check invalid paths.
-        #self.assertFalse(graph.path_exists('counter.o_count', 'counter.counter_q'));
-        #self.assertFalse(graph.path_exists('counter.count_q', 'counter.i_clk'));
-        #self.assertFalse(graph.path_exists('counter.count_q', 'counter.i_rst'));
+        #self.assertFalse(netlist.path_exists('counter.o_count', 'counter.counter_q'));
+        #self.assertFalse(netlist.path_exists('counter.count_q', 'counter.i_clk'));
+        #self.assertFalse(netlist.path_exists('counter.count_q', 'counter.i_rst'));
 
 if __name__ == '__main__':
     unittest.main()

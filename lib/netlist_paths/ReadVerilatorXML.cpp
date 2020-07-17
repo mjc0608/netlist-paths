@@ -302,6 +302,7 @@ void ReadVerilatorXML::visitVarScope(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitVarRef(XMLNode *node) {
+  newVarRef(node);
   iterateChildren(node);
 }
 
@@ -399,12 +400,12 @@ ReadVerilatorXML::ReadVerilatorXML(Netlist &netlist,
                                    std::vector<File> &files,
                                    std::vector<DType> &dtypes,
                                    const std::string &filename) :
-      netlist(netlist),
-      files(files),
-      dtypes(dtypes),
-      currentLogic(nullptr),
-      currentScope(nullptr),
-      isDelayedAssign(false),
-      isLValue(false) {
+    netlist(netlist),
+    files(files),
+    dtypes(dtypes),
+    currentLogic(nullptr),
+    currentScope(nullptr),
+    isDelayedAssign(false),
+    isLValue(false) {
   readXML(filename);
 }

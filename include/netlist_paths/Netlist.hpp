@@ -21,7 +21,6 @@ using Path = std::vector<VertexDesc>;
 class Netlist {
 private:
   Graph graph;
-  std::string topName;
 
   VertexDesc getVertexDesc(const std::string &name,
                            VertexGraphType graphType) const;
@@ -56,15 +55,17 @@ public:
     boost::add_edge(src, dst, graph);
   }
   void setVertexReg(VertexDesc vertex) {
-    graph[vertex].astType = VertexAstType::REG_DST;
+    graph[vertex].astType = VertexAstType::REG;
   }
+  /// Annotate source register vertices.
+  //void annotateRegVertices();
   VertexDesc nullVertex() const { return boost::graph_traits<Graph>::null_vertex(); }
   std::size_t numVertices() { return boost::num_vertices(graph); }
   std::size_t numEdges() { return boost::num_edges(graph); }
   void mergeDuplicateVertices();
   void checkGraph() const;
   void dumpDotFile(const std::string &outputFilename) const;
-  std::vector<VertexDesc> getNames() const;
+  std::vector<VertexDesc> getAllVertices() const;
   VertexDesc getStartVertex(const std::string &name) const {
     return getVertexDesc(name, VertexGraphType::START_POINT);
   }
@@ -81,20 +82,28 @@ public:
   //VertexDesc getEndVertexExcept(const std::string &name) const;
   //VertexDesc getMidVertexExcept(const std::string &name) const;
   //std::vector<Path> getAllFanOut(VertexDesc startVertex) const;
-  //std::vector<Path> getAllFanOut(const std::string &startName) const;
+  //std::vector<Path> getAllFanOut(const std::string &startName) const {
+  //  auto startVertex = getStartVertexExcept(startName);
+  //  return getAllFanOut(startVertex);
+  //}
   //std::vector<Path> getAllFanIn(VertexDesc endVertex) const;
-  //std::vector<Path> getAllFanIn(const std::string &endName) const;
+  //std::vector<Path> getAllFanIn(const std::string &endName) const {
+  //  auto endVertex = getEndVertexExcept(endName);
+  //  return getAllFanIn(endVertex);
+  //}
   //unsigned getfanOutDegree(VertexDesc startVertex);
   //unsigned getfanOutDegree(const std::string &startName);
+  //  auto startVertex = getStartVertexExcept(startName);
+  //  return getfanOutDegree(startVertex);
+  //}
   //unsigned getFanInDegree(VertexDesc endVertex);
   //unsigned getFanInDegree(const std::string &endName);
-  //Path getAnyPointToPoint() const;
-  //std::vector<Path> getAllPointToPoint() const;
-  //const std::string &getVertexName(VertexDesc vertex) const {
-  //  return graph[vertex].name;
+  //  auto endVertex = getEndVertexExcept(endName);
+  //  return getFanInDegree(endVertex);
   //}
-  //bool pathExists(const std::string &start, const std::string &end);
-  Vertex getVertex(VertexDesc vertexId) const { return graph[vertexId]; }
+  Path getAnyPointToPoint(const std::vector<VertexDesc> &waypoints) const;
+  //std::vector<Path> getAllPointToPoint() const;
+  const Vertex &getVertex(VertexDesc vertexId) const { return graph[vertexId]; }
 };
 
 } // End namespace.

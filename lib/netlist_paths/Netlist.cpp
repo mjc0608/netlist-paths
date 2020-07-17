@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_set>
@@ -20,7 +21,6 @@
 #include "netlist_paths/Options.hpp"
 #include "netlist_paths/Debug.hpp"
 
-namespace fs = boost::filesystem;
 using namespace netlist_paths;
 
 class DfsVisitor : public boost::default_dfs_visitor {
@@ -53,6 +53,27 @@ public:
     return;
   }
 };
+
+///// Idenfity r-value registers by matching their names to l-value regsiters that
+///// have been identified in the netlist.
+//void Netlist::annotateRegVertices() {
+//  // Make a list of all the registers.
+//  std::unordered_set<std::string> names;
+//  BGL_FORALL_VERTICES(v, graph, Graph) {
+//    if (graph[v].isDstReg()) {
+//      names.insert(graph[v].name);
+//    }
+//  }
+//  // Match vertices against the register names.
+//  BGL_FORALL_VERTICES(v, graph, Graph) {
+//    if (!graph[v].isLogic() &&
+//        !graph[v].isParameter() &&
+//        !graph[v].isDstReg() &&
+//        names.count(graph[v].name)) {
+//      graph[v].setSrcReg();
+//    }
+//  }
+//}
 
 /// Remove duplicate vertices from the graph by sorting them comparing each
 /// vertex to its neighbours.
@@ -91,40 +112,34 @@ void Netlist::mergeDuplicateVertices() {
 void Netlist::checkGraph() const {
   BGL_FORALL_VERTICES(v, graph, Graph) {
     // Check there are no Vlvbound nodes.
-    if (graph[v].name.find("__Vlvbound") == std::string::npos) {
+    if (graph[v].name.find("__Vlvbound") != std::string::npos) {
       std::cout << "Warning: " << graph[v].name << " vertex in netlist\n";
     }
-    // Source registers don't have in edges.
-    if (graph[v].astType == VertexAstType::REG_SRC) {
-      if (boost::in_degree(v, graph) > 0)
-         std::cout << "Warning: source reg " << graph[v].name
-                   << " has in edges" << "\n";
-    }
-    // Destination registers don't have out edges.
-    if (graph[v].astType == VertexAstType::REG_DST) {
-      if (boost::out_degree(v, graph) > 0)
-        std::cout << "Warning: destination reg " << graph[v].name
-                  << " has out edges"<<"\n";
-    }
+    //// Source registers don't have in edges.
+    //if (graph[v].astType == VertexAstType::REG_SRC) {
+    //  if (boost::in_degree(v, graph) > 0)
+    //     std::cout << "Warning: source reg " << graph[v].name
+    //               << " has in edges" << "\n";
+    //}
+    //// Destination registers don't have out edges.
+    //if (graph[v].astType == VertexAstType::REG_DST) {
+    //  if (boost::out_degree(v, graph) > 0)
+    //    std::cout << "Warning: destination reg " << graph[v].name
+    //              << " has out edges"<<"\n";
+    //}
     // NOTE: vertices may be incorrectly marked as reg if a field of a
     // structure has a delayed assignment to a field of it.
   }
 }
 
-/// Dump unique names of vars/regs/wires in the netlist for searching.
-std::vector<VertexDesc> Netlist::getNames() const {
-  std::vector<VertexDesc> vs;
-  // Collect vertices.
-  BGL_FORALL_VERTICES(v, graph, Graph) {
-    if (graph[v].isVisible()) {
-      vs.push_back(v);
-    }
-  }
-  // Sort them.
-  auto compare = [this](const VertexDesc a, const VertexDesc b) {
-                   return graph[a].compareLessThan(graph[b]); };
-  std::sort(vs.begin(), vs.end(), compare);
-  return vs;
+/// Return a list of Vertex objects in the graph.
+std::vector<VertexDesc> Netlist::getAllVertices() const {
+  // FIXME
+  //std::vector<VertexDesc> vertices;
+  //BGL_FORALL_VERTICES(v, graph, Graph) {
+  //  vertices.push_back(v);
+  //}
+  return {};
 }
 
 /// Dump a Graphviz dotfile of the netlist graph for visualisation.
@@ -137,8 +152,8 @@ void Netlist::dumpDotFile(const std::string &outputFilename) const {
   outputFile << "digraph netlist {\n";
   BGL_FORALL_VERTICES(v, graph, Graph) {
     outputFile << v << " ["
-       << "name=\""<<graph[v].name << "\" "
-       << "type=\""<<getVertexAstTypeStr(graph[v].astType) << "\""
+       << "name=\"" << graph[v].name << "\" "
+       << "type=\"" << getVertexAstTypeStr(graph[v].astType) << "\""
        << "]\n";
   }
   // Loop over all edges.
@@ -201,60 +216,61 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //    return vertex;
 //  }
 //}
-//
-//void Netlist::dumpPath(const std::vector<VertexDesc> &path) const {
-//  for (auto v : path) {
-//    if (!isLogic(graph[v])) {
-//      std::cout << "  " << graph[v].name << "\n";
-//    }
-//  }
-//}
-//
-///// Given the tree structure from a DFS, traverse the tree from leaf to root to
-///// return a path.
-//Path Netlist::determinePath(ParentMap &parentMap,
-//                                 Path path,
-//                                 VertexDesc startVertex,
-//                                 VertexDesc endVertex) const {
-//  path.push_back(endVertex);
-//  if (endVertex == startVertex) {
-//    return path;
-//  }
-//  if (parentMap[endVertex].size() == 0)
-//    return std::vector<VertexDesc>();
-//  assert(parentMap[endVertex].size() == 1);
-//  auto nextVertex = parentMap[endVertex].front();
-//  assert(std::find(std::begin(path),
-//                   std::end(path),
-//                   nextVertex) == std::end(path));
-//  return determinePath(parentMap, path, startVertex, nextVertex);
-//}
-//
-///// Determine all paths between a start and an end point.
-///// This performs a DFS starting at the end point. It is not feasible for large
-///// graphs since the number of simple paths grows exponentially.
-//void Netlist::determineAllPaths(ParentMap &parentMap,
-//                                     std::vector<Path> &result,
-//                                     Path path,
-//                                     VertexDesc startVertex,
-//                                     VertexDesc endVertex) const {
-//  path.push_back(endVertex);
-//  if (endVertex == startVertex) {
-//    INFO(std::cout << "FOUND PATH\n");
-//    result.push_back(path);
-//    return;
-//  }
-//  INFO(std::cout<<"length "<<path.size()<<" vertex "<<graph[endVertex].id<<"\n");
-//  INFO(dumpPath(path));
-//  INFO(std::cout<<(parentMap[endVertex].empty()?"DEAD END\n":""));
-//  for (auto vertex : parentMap[endVertex]) {
-//    if (std::find(std::begin(path), std::end(path), vertex) == std::end(path)) {
-//      determineAllPaths(parentMap, result, path, startVertex, vertex);
-//    } else {
-//      INFO(std::cout << "CYCLE DETECTED\n");
-//    }
-//  }
-//}
+
+void Netlist::dumpPath(const std::vector<VertexDesc> &path) const {
+  for (auto v : path) {
+    if (!graph[v].isLogic()) {
+      std::cout << "  " << graph[v].name << "\n";
+    }
+  }
+}
+
+/// Given the tree structure from a DFS, traverse the tree from leaf to root to
+/// return a path.
+Path Netlist::determinePath(ParentMap &parentMap,
+                                 Path path,
+                                 VertexDesc startVertex,
+                                 VertexDesc endVertex) const {
+  path.push_back(endVertex);
+  if (endVertex == startVertex) {
+    return path;
+  }
+  if (parentMap[endVertex].size() == 0)
+    return std::vector<VertexDesc>();
+  assert(parentMap[endVertex].size() == 1);
+  auto nextVertex = parentMap[endVertex].front();
+  assert(std::find(std::begin(path),
+                   std::end(path),
+                   nextVertex) == std::end(path));
+  return determinePath(parentMap, path, startVertex, nextVertex);
+}
+
+/// Determine all paths between a start and an end point.
+/// This performs a DFS starting at the end point. It is not feasible for large
+/// graphs since the number of simple paths grows exponentially.
+void Netlist::determineAllPaths(ParentMap &parentMap,
+                                     std::vector<Path> &result,
+                                     Path path,
+                                     VertexDesc startVertex,
+                                     VertexDesc endVertex) const {
+  path.push_back(endVertex);
+  if (endVertex == startVertex) {
+    INFO(std::cout << "FOUND PATH\n");
+    result.push_back(path);
+    return;
+  }
+  INFO(std::cout<<"length "<<path.size()
+                <<" vertex "<<graph[endVertex].toString()<<"\n");
+  INFO(dumpPath(path));
+  INFO(std::cout<<(parentMap[endVertex].empty()?"DEAD END\n":""));
+  for (auto vertex : parentMap[endVertex]) {
+    if (std::find(std::begin(path), std::end(path), vertex) == std::end(path)) {
+      determineAllPaths(parentMap, result, path, startVertex, vertex);
+    } else {
+      INFO(std::cout << "CYCLE DETECTED\n");
+    }
+  }
+}
 
 ///// Report all paths fanning out from a net/register/port.
 //std::vector<Path> Netlist::
@@ -280,12 +296,6 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //    }
 //  }
 //  return paths;
-//}
-//
-//std::vector<Path> Netlist::
-//getAllFanOut(const std::string &startName) const {
-//  auto startVertex = getStartVertexExcept(startName);
-//  return getAllFanOut(startVertex);
 //}
 //
 ///// Report all paths fanning into a net/register/port.
@@ -314,43 +324,37 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //  return paths;
 //}
 //
-//std::vector<Path> Netlist::
-//getAllFanIn(const std::string &endName) const {
-//  auto endVertex = getEndVertexExcept(endName);
-//  return getAllFanIn(endVertex);
-//}
-//
-///// Report a single path between a set of named points.
-//Path Netlist::
-//getAnyPointToPoint() const {
-//  std::vector<VertexDesc> path;
-//  // Construct the path between each adjacent waypoints.
-//  for (std::size_t i = 0; i < waypoints.size()-1; ++i) {
-//    auto startVertex = waypoints[i];
-//    auto endVertex = waypoints[i+1];
-//    INFO(std::cout << "Performing DFS from "
-//                   << graph[startVertex].name << "\n");
-//    ParentMap parentMap;
-//    boost::depth_first_search(graph,
-//        boost::visitor(DfsVisitor(parentMap, false))
-//          .root_vertex(startVertex));
-//    INFO(std::cout << "Determining a path to "
-//                   << graph[endVertex].name << "\n");
-//    auto subPath = determinePath(parentMap,
-//                                 Path(),
-//                                 startVertex,
-//                                 endVertex);
-//    if (subPath.empty()) {
-//      // No path exists.
-//      return Path();
-//    }
-//    std::reverse(std::begin(subPath), std::end(subPath));
-//    path.insert(std::end(path), std::begin(subPath), std::end(subPath)-1);
-//  }
-//  path.push_back(waypoints.back());
-//  return path;
-//}
-//
+/// Report a single path between a set of named points.
+Path Netlist::
+getAnyPointToPoint(const std::vector<VertexDesc> &waypoints) const {
+  std::vector<VertexDesc> path;
+  // Construct the path between each adjacent waypoints.
+  for (std::size_t i = 0; i < waypoints.size()-1; ++i) {
+    auto startVertex = waypoints[i];
+    auto endVertex = waypoints[i+1];
+    INFO(std::cout << "Performing DFS from "
+                   << graph[startVertex].name << "\n");
+    ParentMap parentMap;
+    boost::depth_first_search(graph,
+        boost::visitor(DfsVisitor(parentMap, false))
+          .root_vertex(startVertex));
+    INFO(std::cout << "Determining a path to "
+                   << graph[endVertex].name << "\n");
+    auto subPath = determinePath(parentMap,
+                                 Path(),
+                                 startVertex,
+                                 endVertex);
+    if (subPath.empty()) {
+      // No path exists.
+      return Path();
+    }
+    std::reverse(std::begin(subPath), std::end(subPath));
+    path.insert(std::end(path), std::begin(subPath), std::end(subPath)-1);
+  }
+  path.push_back(waypoints.back());
+  return path;
+}
+
 ///// Report all paths between start and end points.
 //std::vector<Path> Netlist::
 //getAllPointToPoint() const {
@@ -386,12 +390,6 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //  return count;
 //}
 //
-//unsigned Netlist::
-//getfanOutDegree(const std::string &startName) {
-//  auto startVertex = getStartVertexExcept(startName);
-//  return getfanOutDegree(startVertex);
-//}
-//
 ///// Return he number of registers that fan into an end point.
 //unsigned Netlist::
 //getFanInDegree(VertexDesc endVertex) {
@@ -403,28 +401,4 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
 //    count += 1;
 //  }
 //  return count;
-//}
-//
-//unsigned Netlist::
-//getFanInDegree(const std::string &endName) {
-//  auto endVertex = getEndVertexExcept(endName);
-//  return getFanInDegree(endVertex);
-//}
-//
-///// Check if a path exists between two points.
-//bool Netlist::
-//pathExists(const std::string &start, const std::string &end) {
-//  clearWaypoints();
-//  // Check that the start and end points exist.
-//  auto startPoint = getStartVertex(start);
-//  auto endPoint = getEndVertex(end);
-//  if (startPoint == nullVertex() ||
-//      endPoint == nullVertex()) {
-//    return false;
-//  }
-//  // Check the path exists.
-//  waypoints.push_back(startPoint);
-//  waypoints.push_back(endPoint);
-//  auto path = getAnyPointToPoint();
-//  return !path.empty();
 //}
