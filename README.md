@@ -1,6 +1,9 @@
 # Netlist paths
 
-This is a command line tool for querying paths in a Verilog netlist.
+This is a command-line tool for querying a Verilog netlist. It reads
+an XML representation of a design's netlist, produced by Verilator, and
+provides facilities for inspecting types, variables and paths.
+
 
 ## Compile and install
 
@@ -24,10 +27,10 @@ git submodule update --init --recursive
 mkdir Debug
 cd Debug
 cmake .. -DCMAKE_BUILD_TYPE=Debug
-make -j8
-make install
+make -j8 install
 ctest . --verbose
 ```
+
 
 ## Debugging
 
@@ -42,8 +45,8 @@ Produce a visualisation of the netlist graph:
 netlist-paths out.xml --verbose --debug --dotfile --outfile graph.dot
 dot -Tpdf graph.dot -o graph.pdf
 ```
-Run ``pytest`` directly:
+Run Python unit tests directly (version of Python must match build):
 ```
-cd Debug
-pytest tests/py_wrapper_tests.py
+cd Debug/tests
+python py_wrapper_tests.py
 ```
