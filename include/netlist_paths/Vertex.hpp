@@ -23,8 +23,8 @@ enum class VertexAstType {
   ASSIGN_W,
   ALWAYS,
   INITIAL,
-  REG,
-  //REG_DST,
+  SRC_REG,
+  DST_REG,
   SEN_GATE,
   SEN_ITEM,
   VAR,
@@ -37,7 +37,8 @@ enum class VertexAstType {
 // Vertex categorisation within the netlist graph.
 enum class VertexGraphType {
   REG,
-  //SRC_REG,
+  DST_REG,
+  SRC_REG,
   LOGIC,
   START_POINT,
   END_POINT,
@@ -65,8 +66,8 @@ inline VertexAstType getVertexAstType(const std::string &name) {
       { "ASSIGN_W",     VertexAstType::ASSIGN_W },
       { "ALWAYS",       VertexAstType::ALWAYS },
       { "INITIAL",      VertexAstType::INITIAL },
-      { "REG",          VertexAstType::REG },
-      //{ "REG_DST",      VertexAstType::REG_DST },
+      { "SRC_REG",      VertexAstType::SRC_REG },
+      { "DST_REG",      VertexAstType::DST_REG },
       { "SEN_GATE",     VertexAstType::SEN_GATE },
       { "SEN_ITEM",     VertexAstType::SEN_ITEM },
       { "VAR",          VertexAstType::VAR },
@@ -87,8 +88,8 @@ inline const char *getVertexAstTypeStr(VertexAstType type) {
     case VertexAstType::ASSIGN_W:     return "ASSIGN_W";
     case VertexAstType::ALWAYS:       return "ALWAYS";
     case VertexAstType::INITIAL:      return "INITIAL";
-    case VertexAstType::REG:          return "REG";
-    //case VertexAstType::REG_DST:      return "REG_DST";
+    case VertexAstType::SRC_REG:      return "SRC_REG";
+    case VertexAstType::DST_REG:      return "DST_REG";
     case VertexAstType::SEN_GATE:     return "SEN_GATE";
     case VertexAstType::SEN_ITEM:     return "SEN_ITEM";
     case VertexAstType::VAR:          return "VAR";
@@ -144,8 +145,8 @@ struct Vertex {
       direction(VertexDirection::NONE),
       location(location),
       isParam(false),
-      isTop(false),
       isPublic(false),
+      isTop(false),
       deleted(false) {}
   /// Var vertex.
   Vertex(VertexAstType type,
@@ -163,9 +164,19 @@ struct Vertex {
       name(name),
       isParam(isParam),
       paramValue(paramValue),
-      isTop(determineIsTop(name)),
       isPublic(isPublic),
+      isTop(determineIsTop(name)),
       deleted(false) {}
+  /// Copy constructor.
+  Vertex(const Vertex &v) :
+      astType(v.astType),
+      direction(v.direction),
+      location(v.location),
+      dtype(v.dtype),
+      name(v.name),
+      isParam(v.isParam),
+      isTop(v.isTop),
+      deleted(v.deleted) {}
   /// A Vertex is in the 'top' scope when has one or two hierarchical components.
   /// module.name or name is top level, but module.submodule.name is not.
   static bool determineIsTop(const std::string &name) {
@@ -206,7 +217,8 @@ struct Vertex {
   bool isGraphType(VertexGraphType type) const {
     switch (type) {
       case VertexGraphType::REG:         return isReg();
-      //case VertexGraphType::SRC_REG:     return isSrcReg();
+      case VertexGraphType::SRC_REG:     return isDstReg();
+      case VertexGraphType::DST_REG:     return isSrcReg();
       case VertexGraphType::LOGIC:       return isLogic();
       case VertexGraphType::START_POINT: return isStartPoint();
       case VertexGraphType::END_POINT:   return isEndPoint();
@@ -214,14 +226,14 @@ struct Vertex {
       default:                           return false;
     }
   }
-  //inline bool isSrcReg() const {
-  //  return !deleted &&
-  //         astType == VertexAstType::REG_SRC;
-  //}
-  //inline bool isDstReg() const {
-  //  return !deleted &&
-  //         astType == VertexAstType::REG_DST;
-  //}
+  inline bool isSrcReg() const {
+    return !deleted &&
+           astType == VertexAstType::SRC_REG;
+  }
+  inline bool isDstReg() const {
+    return !deleted &&
+           astType == VertexAstType::DST_REG;
+  }
   inline bool isLogic() const {
     return astType == VertexAstType::LOGIC ||
            astType == VertexAstType::ASSIGN ||
@@ -238,7 +250,8 @@ struct Vertex {
   }
   inline bool isReg() const {
     return !deleted &&
-           astType == VertexAstType::REG;
+           (astType == VertexAstType::SRC_REG ||
+            astType == VertexAstType::DST_REG);
   }
   inline bool isPort() const {
     return !deleted &&
@@ -249,13 +262,13 @@ struct Vertex {
   }
   inline bool isStartPoint() const {
     return !deleted &&
-           (astType == VertexAstType::REG ||
+           (astType == VertexAstType::SRC_REG ||
             (direction == VertexDirection::INPUT && isTop) ||
             (direction == VertexDirection::INOUT && isTop));
   }
   inline bool isEndPoint() const {
     return !deleted &&
-           (astType == VertexAstType::REG ||
+           (astType == VertexAstType::DST_REG ||
             (direction == VertexDirection::OUTPUT && isTop) ||
             (direction == VertexDirection::INOUT && isTop));
   }
@@ -269,12 +282,13 @@ struct Vertex {
     // Ignore variables Verilator has introduced.
     return name.find("__Vdly") != std::string::npos ||
            name.find("__Vcell") != std::string::npos ||
-           name.find("__Vconc") != std::string::npos;
+           name.find("__Vconc") != std::string::npos ||
+           name.find("__Vfunc") != std::string::npos;
   }
   /// Visible vertices are displayed in the name dump.
   inline bool isVisible() const {
     return !isLogic() &&
-           //!isSrcReg() &&
+           !isSrcReg() &&
            !canIgnore() &&
            !isDeleted();
   }
@@ -285,7 +299,7 @@ struct Vertex {
   }
   bool isDeleted() const { return deleted; }
   void setDeleted() { deleted = true; }
-  //void setSrcReg() { astType = VertexAstType::REG_SRC; }
+  void setSrcReg() { astType = VertexAstType::SRC_REG; }
   const std::string &getName() const { return name; }
 };
 

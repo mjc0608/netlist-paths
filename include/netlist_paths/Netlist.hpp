@@ -54,31 +54,33 @@ public:
   void addEdge(VertexDesc src, VertexDesc dst) {
     boost::add_edge(src, dst, graph);
   }
-  void setVertexReg(VertexDesc vertex) {
-    graph[vertex].astType = VertexAstType::REG;
+  void setVertexDstReg(VertexDesc vertex) {
+    graph[vertex].astType = VertexAstType::DST_REG;
   }
   /// Annotate source register vertices.
   //void annotateRegVertices();
   VertexDesc nullVertex() const { return boost::graph_traits<Graph>::null_vertex(); }
   std::size_t numVertices() { return boost::num_vertices(graph); }
   std::size_t numEdges() { return boost::num_edges(graph); }
+  void splitRegVertices();
   void mergeDuplicateVertices();
   void checkGraph() const;
   void dumpDotFile(const std::string &outputFilename) const;
   std::vector<VertexDesc> getAllVertices() const;
-  VertexDesc getVertexDesc(const std::string &name,
-                           VertexGraphType graphType) const;
+  VertexDesc getVertexDesc(const std::string &name) const;
+  VertexDesc getVertexDescRegex(const std::string &name,
+                                VertexGraphType graphType) const;
   VertexDesc getStartVertex(const std::string &name) const {
-    return getVertexDesc(name, VertexGraphType::START_POINT);
+    return getVertexDescRegex(name, VertexGraphType::START_POINT);
   }
   VertexDesc getEndVertex(const std::string &name) const {
-    return getVertexDesc(name, VertexGraphType::END_POINT);
+    return getVertexDescRegex(name, VertexGraphType::END_POINT);
   }
   VertexDesc getMidVertex(const std::string &name) const {
-    return getVertexDesc(name, VertexGraphType::MID_POINT);
+    return getVertexDescRegex(name, VertexGraphType::MID_POINT);
   }
   VertexDesc getRegVertex(const std::string &name) const {
-    return getVertexDesc(name, VertexGraphType::REG);
+    return getVertexDescRegex(name, VertexGraphType::REG);
   }
   //VertexDesc getStartVertexExcept(const std::string &name) const;
   //VertexDesc getEndVertexExcept(const std::string &name) const;

@@ -174,19 +174,33 @@ void ReadVerilatorXML::newVar(XMLNode *node) {
                                      isParam,
                                      paramValue,
                                      isPublic);
-  auto origName = node->first_attribute("origName")->value();
   vars.push_back(std::make_unique<VarNode>(name, vertex));
   DEBUG(std::cout << "Add var '" << name << "' to scope\n");
   // Add edges between public/top-level vars and their internal instances
   // eg i_clk and <module>.i_clk (to work around the flattened representation
   // of the netlist.
-  auto publicVertex = netlist.getVertexDesc(origName, VertexGraphType::ANY);
-  if (publicVertex != netlist.nullVertex()) {
-    netlist.addEdge(publicVertex, vertex);
-    netlist.addEdge(vertex, publicVertex);
-    DEBUG(std::cout << "Edge to/from original var "
-                    << netlist.getVertex(publicVertex).toString() << " to "
-                    << netlist.getVertex(vertex).toString() << "\n");
+  if (node->first_attribute("origName")) {
+    auto origName = node->first_attribute("origName")->value();
+    auto publicVertex = netlist.getVertexDesc(origName);
+    if (publicVertex != netlist.nullVertex() && !isParam) {
+      assert(netlist.getVertex(publicVertex).isPort() &&
+       "expect original-named var to be a port");
+      netlist.addEdge(publicVertex, vertex);
+      netlist.addEdge(vertex, publicVertex);
+      DEBUG(std::cout << "Edge to/from original var "
+          << netlist.getVertex(publicVertex).toString() << " to "
+          << netlist.getVertex(vertex).toString() << "\n");
+    }
+  }
+}
+
+void ReadVerilatorXML::newVarScope(XMLNode *node) {
+  auto name = node->first_attribute("name")->value();
+  auto existingVarVertex = lookupVarVertex(name);
+  // newVar is called for 'var' and 'varscope' nodes since Verilator introduces
+  // some nodes during its transformations on as 'varscope's.
+  if (existingVarVertex == netlist.nullVertex()) {
+    newVar(node);
   }
 }
 
@@ -241,7 +255,7 @@ void ReadVerilatorXML::newVarRef(XMLNode *node) {
       if (isDelayedAssign) {
         // Var is reg l-value.
         netlist.addEdge(currentLogic->getVertex(), varVertex);
-        netlist.setVertexReg(varVertex);
+        netlist.setVertexDstReg(varVertex);
         DEBUG(std::cout << "Edge from LOGIC to REG '" << varName << "'\n");
       } else {
         // Var is wire l-value.
@@ -312,7 +326,7 @@ void ReadVerilatorXML::visitVar(XMLNode *node) {
 }
 
 void ReadVerilatorXML::visitVarScope(XMLNode *node) {
-  iterateChildren(node);
+  newVarScope(node);
 }
 
 void ReadVerilatorXML::visitVarRef(XMLNode *node) {

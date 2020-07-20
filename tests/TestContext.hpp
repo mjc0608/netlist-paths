@@ -39,11 +39,14 @@ struct TestContext {
     names.erase(last, std::end(names));
     BOOST_TEST(vertices.size() == names.size());
   }
-  /// Check all names are qualified with the top module name.
+  /// Check all hierarchical names are qualified with the top module name.
   void qualifiedNames(const std::string &topName) {
     for (auto v : np->getNamedVertices()) {
       auto name = std::remove_reference<const netlist_paths::Vertex>::type(v).getName();
-      BOOST_TEST(boost::starts_with(name, topName));
+      if (name.find('.') != std::string::npos &&
+          name.rfind("__", 0) == std::string::npos) {
+        BOOST_TEST(boost::starts_with(name, topName));
+      }
     }
   }
   bool regExists(const std::string &name) { return np->regExists(name); }

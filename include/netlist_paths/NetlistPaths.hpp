@@ -19,8 +19,7 @@ public:
   NetlistPaths() = delete;
   NetlistPaths(const std::string &filename) {
     ReadVerilatorXML(netlist, files, dtypes, filename);
-    netlist.mergeDuplicateVertices();
-    //netlist.annotateRegVertices();
+    netlist.splitRegVertices();
     netlist.checkGraph();
   }
   //===--------------------------------------------------------------------===//

@@ -48,7 +48,11 @@ BOOST_FIXTURE_TEST_CASE(counter, TestContext) {
   BOOST_TEST(pathExists("i_clk", "counter.counter_q"));
   BOOST_TEST(pathExists("i_rst", "counter.counter_q"));
   BOOST_TEST(pathExists("counter.counter_q", "o_count"));
-  BOOST_TEST(!pathExists("counter.counter_q", "o_wrap"));
+  BOOST_TEST(pathExists("counter.counter_q", "o_wrap"));
+  BOOST_TEST(!pathExists("i_clk", "o_count"));
+  BOOST_TEST(!pathExists("i_rst", "o_counto_count"));
+  BOOST_TEST(!pathExists("i_clk", "o_wrap"));
+  BOOST_TEST(!pathExists("i_rst", "o_wrap"));
   // TODO: check --from o_counter has no fan out paths
 }
 
@@ -82,11 +86,11 @@ BOOST_FIXTURE_TEST_CASE(pipeline_module, TestContext) {
 }
 
 BOOST_FIXTURE_TEST_CASE(vlvbound, TestContext) {
-  //BOOST_CHECK_NO_THROW(compile("vlvbound.sv", "vlvbound"));
+  BOOST_CHECK_NO_THROW(compile("vlvbound.sv", "vlvbound_test"));
   // Test that the inlined tasks do not share a merged VlVbound node.
   // See https://www.veripool.org/boards/3/topics/2619
-  //BOOST_TEST( pathExists("i_foo_current", "o_foo_inactive"));
-  //BOOST_TEST( pathExists("i_foo_next",    "o_next_foo_inactive"));
-  //BOOST_TEST(!pathExists("i_foo_current", "o_next_foo_inactive"));
-  //BOOST_TEST(!pathExists("i_foo_next",    "o_foo_inactive"));
+  BOOST_TEST( pathExists("i_foo_current", "o_foo_inactive"));
+  BOOST_TEST( pathExists("i_foo_next",    "o_next_foo_inactive"));
+  BOOST_TEST(!pathExists("i_foo_current", "o_next_foo_inactive"));
+  BOOST_TEST(!pathExists("i_foo_next",    "o_foo_inactive"));
 }

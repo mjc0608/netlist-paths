@@ -41,7 +41,7 @@ public:
     }
     return;
   }
-  // Visit all edges of a all vertices.
+  // Visit all edges of a vertex.
   template<typename Edge, typename Graph>
   void examine_edge(Edge edge, const Graph &graph) const {
     if (allPaths) {
@@ -54,79 +54,79 @@ public:
   }
 };
 
-///// Idenfity r-value registers by matching their names to l-value regsiters that
-///// have been identified in the netlist.
-//void Netlist::annotateRegVertices() {
-//  // Make a list of all the registers.
-//  std::unordered_set<std::string> names;
-//  BGL_FORALL_VERTICES(v, graph, Graph) {
-//    if (graph[v].isDstReg()) {
-//      names.insert(graph[v].name);
-//    }
-//  }
-//  // Match vertices against the register names.
-//  BGL_FORALL_VERTICES(v, graph, Graph) {
-//    if (!graph[v].isLogic() &&
-//        !graph[v].isParameter() &&
-//        !graph[v].isDstReg() &&
-//        names.count(graph[v].name)) {
-//      graph[v].setSrcReg();
-//    }
-//  }
-//}
-
-/// Remove duplicate vertices from the graph by sorting them comparing each
-/// vertex to its neighbours.
-void Netlist::mergeDuplicateVertices() {
-  std::vector<VertexDesc> vs;
+void Netlist::splitRegVertices() {
   BGL_FORALL_VERTICES(v, graph, Graph) {
-    if (!graph[v].isLogic()) {
-      vs.push_back(v);
-    }
-  }
-  auto compare = [this](const VertexDesc a, const VertexDesc b) {
-                   return graph[a].compareLessThan(graph[b]); };
-  std::sort(std::begin(vs), std::end(vs), compare);
-  VertexDesc current = vs[0];
-  unsigned count = 0;
-  for (size_t i=1; i<vs.size(); i++) {
-    if (graph[vs[i]].compareEqual(graph[current])) {
-      DEBUG(std::cout << "DUPLICATE VERTEX " << graph[vs[i]].name << "\n");
-      BGL_FORALL_ADJ(vs[i], v, graph, Graph) {
-        boost::add_edge(current, v, graph);
-        boost::remove_edge(vs[i], v, graph);
+    if (graph[v].isReg()) {
+      // Collect all adjacent vertices.
+      std::vector<VertexDesc> adjacentVertices;
+      BGL_FORALL_ADJ(v, adjVertex, graph, Graph) {
+        adjacentVertices.push_back(adjVertex);
       }
-      // We mark duplicate vertices as deleted since it is expensive to remove
-      // them from the graph as vertices are stored in a vecS. Using a listS
-      // is less performant.
-      graph[vs[i]].setDeleted();
-      ++count;
-    } else {
-      current = vs[i];
+      // Create a new 'source' reg vertex.
+      Vertex srcReg(graph[v]);
+      srcReg.setSrcReg();
+      auto srcRegVertex = boost::add_vertex(srcReg, graph);
+      // Move the out edges to the src reg (while not iterating).
+      for (auto adjVertex : adjacentVertices) {
+        boost::remove_edge(v, adjVertex, graph);
+        boost::add_edge(srcRegVertex, adjVertex, graph);
+      }
     }
   }
-  INFO(std::cout << "Removed " << count << " duplicate vertices\n");
 }
+
+///// Remove duplicate vertices from the graph by sorting them comparing each
+///// vertex to its neighbours.
+//void Netlist::mergeDuplicateVertices() {
+//  std::vector<VertexDesc> vs;
+//  BGL_FORALL_VERTICES(v, graph, Graph) {
+//    if (!graph[v].isLogic()) {
+//      vs.push_back(v);
+//    }
+//  }
+//  auto compare = [this](const VertexDesc a, const VertexDesc b) {
+//                   return graph[a].compareLessThan(graph[b]); };
+//  std::sort(std::begin(vs), std::end(vs), compare);
+//  VertexDesc current = vs[0];
+//  unsigned count = 0;
+//  for (size_t i=1; i<vs.size(); i++) {
+//    if (graph[vs[i]].compareEqual(graph[current])) {
+//      DEBUG(std::cout << "DUPLICATE VERTEX " << graph[vs[i]].name << "\n");
+//      BGL_FORALL_ADJ(vs[i], v, graph, Graph) {
+//        boost::add_edge(current, v, graph);
+//        boost::remove_edge(vs[i], v, graph);
+//      }
+//      // We mark duplicate vertices as deleted since it is expensive to remove
+//      // them from the graph as vertices are stored in a vecS. Using a listS
+//      // is less performant.
+//      graph[vs[i]].setDeleted();
+//      ++count;
+//    } else {
+//      current = vs[i];
+//    }
+//  }
+//  INFO(std::cout << "Removed " << count << " duplicate vertices\n");
+//}
 
 /// Perform some checks on the netlist and emit warnings if necessary.
 void Netlist::checkGraph() const {
   BGL_FORALL_VERTICES(v, graph, Graph) {
     // Check there are no Vlvbound nodes.
     if (graph[v].name.find("__Vlvbound") != std::string::npos) {
-      std::cout << "Warning: " << graph[v].name << " vertex in netlist\n";
+      std::cout << "Warning: " << graph[v].toString() << " vertex in netlist\n";
     }
-    //// Source registers don't have in edges.
-    //if (graph[v].astType == VertexAstType::REG_SRC) {
-    //  if (boost::in_degree(v, graph) > 0)
-    //     std::cout << "Warning: source reg " << graph[v].name
-    //               << " has in edges" << "\n";
-    //}
-    //// Destination registers don't have out edges.
-    //if (graph[v].astType == VertexAstType::REG_DST) {
-    //  if (boost::out_degree(v, graph) > 0)
-    //    std::cout << "Warning: destination reg " << graph[v].name
-    //              << " has out edges"<<"\n";
-    //}
+    // Source registers don't have in edges.
+    if (graph[v].astType == VertexAstType::SRC_REG) {
+      if (boost::in_degree(v, graph) > 0)
+         std::cout << "Warning: source reg " << graph[v].toString()
+                   << " has in edges" << "\n";
+    }
+    // Destination registers don't have out edges.
+    if (graph[v].astType == VertexAstType::DST_REG) {
+      if (boost::out_degree(v, graph) > 0)
+        std::cout << "Warning: destination reg " << graph[v].toString()
+                  << " has out edges"<<"\n";
+    }
     // NOTE: vertices may be incorrectly marked as reg if a field of a
     // structure has a delayed assignment to a field of it.
   }
@@ -134,12 +134,11 @@ void Netlist::checkGraph() const {
 
 /// Return a list of Vertex objects in the graph.
 std::vector<VertexDesc> Netlist::getAllVertices() const {
-  // FIXME
-  //std::vector<VertexDesc> vertices;
-  //BGL_FORALL_VERTICES(v, graph, Graph) {
-  //  vertices.push_back(v);
-  //}
-  return {};
+  std::vector<VertexDesc> vs;
+  BGL_FORALL_VERTICES(v, graph, Graph) {
+    vs.push_back(v);
+  }
+  return vs;
 }
 
 /// Dump a Graphviz dotfile of the netlist graph for visualisation.
@@ -152,7 +151,7 @@ void Netlist::dumpDotFile(const std::string &outputFilename) const {
   outputFile << "digraph netlist {\n";
   BGL_FORALL_VERTICES(v, graph, Graph) {
     outputFile << v << " ["
-       << "name=\"" << graph[v].name << "\" "
+       << "label=\"" << graph[v].name << "\", "
        << "type=\"" << getVertexAstTypeStr(graph[v].astType) << "\""
        << "]\n";
   }
@@ -167,9 +166,19 @@ void Netlist::dumpDotFile(const std::string &outputFilename) const {
   INFO(std::cout << "dot -Tpdf " << outputFilename << " -o graph.pdf\n");
 }
 
+/// Lookup a vertex by name.
+VertexDesc Netlist::getVertexDesc(const std::string &name) const {
+  BGL_FORALL_VERTICES(v, graph, Graph) {
+    if (graph[v].name == name) {
+      return v;
+    }
+  }
+  return nullVertex();
+}
+
 /// Lookup a vertex using a regex pattern and function specifying a type.
-VertexDesc Netlist::getVertexDesc(const std::string &name,
-                                  VertexGraphType graphType) const {
+VertexDesc Netlist::getVertexDescRegex(const std::string &name,
+                                       VertexGraphType graphType) const {
   // TODO: add an option to disable regex matching.
   // FIXME: create a list of candidate vertices, rather than iterating all vertices.
   auto nameRegexStr(name);
@@ -228,15 +237,16 @@ void Netlist::dumpPath(const std::vector<VertexDesc> &path) const {
 /// Given the tree structure from a DFS, traverse the tree from leaf to root to
 /// return a path.
 Path Netlist::determinePath(ParentMap &parentMap,
-                                 Path path,
-                                 VertexDesc startVertex,
-                                 VertexDesc endVertex) const {
+                            Path path,
+                            VertexDesc startVertex,
+                            VertexDesc endVertex) const {
   path.push_back(endVertex);
   if (endVertex == startVertex) {
     return path;
   }
-  if (parentMap[endVertex].size() == 0)
+  if (parentMap[endVertex].size() == 0) {
     return std::vector<VertexDesc>();
+  }
   assert(parentMap[endVertex].size() == 1);
   auto nextVertex = parentMap[endVertex].front();
   assert(std::find(std::begin(path),
