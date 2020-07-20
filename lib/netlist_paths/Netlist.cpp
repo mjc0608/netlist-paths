@@ -54,6 +54,10 @@ public:
   }
 };
 
+/// Register vertices are split into 'destination' registers only with in edges
+/// and 'source' registers only with out edges. This implies graph connectivity
+/// follows combinatorial paths in the netlist and allows traversals of the
+/// graph to trace combinatorial timing paths.
 void Netlist::splitRegVertices() {
   BGL_FORALL_VERTICES(v, graph, Graph) {
     if (graph[v].isReg()) {

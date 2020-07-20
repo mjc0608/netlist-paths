@@ -187,6 +187,7 @@ void ReadVerilatorXML::newVar(XMLNode *node) {
        "expect original-named var to be a port");
       netlist.addEdge(publicVertex, vertex);
       netlist.addEdge(vertex, publicVertex);
+      netlist.setVertexDirection(vertex, netlist.getVertex(publicVertex).getDirection());
       DEBUG(std::cout << "Edge to/from original var "
           << netlist.getVertex(publicVertex).toString() << " to "
           << netlist.getVertex(vertex).toString() << "\n");

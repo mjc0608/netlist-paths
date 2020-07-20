@@ -301,6 +301,7 @@ struct Vertex {
   void setDeleted() { deleted = true; }
   void setSrcReg() { astType = VertexAstType::SRC_REG; }
   const std::string &getName() const { return name; }
+  VertexDirection getDirection() const { return direction; }
 };
 
 } // End netlist_paths namespace.

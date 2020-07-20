@@ -57,6 +57,9 @@ public:
   void setVertexDstReg(VertexDesc vertex) {
     graph[vertex].astType = VertexAstType::DST_REG;
   }
+  void setVertexDirection(VertexDesc vertex, VertexDirection direction) {
+    graph[vertex].direction = direction;
+  }
   /// Annotate source register vertices.
   //void annotateRegVertices();
   VertexDesc nullVertex() const { return boost::graph_traits<Graph>::null_vertex(); }
