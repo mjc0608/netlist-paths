@@ -1,4 +1,4 @@
 [submodule "verilator"]
 	path = verilator
 	url = https://github.com/jameshanlon/verilator.git
-	branch = master
+	branch = fix-flatten-xml
