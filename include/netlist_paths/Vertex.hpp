@@ -37,11 +37,12 @@ enum class VertexAstType {
 // Vertex categorisation within the netlist graph.
 enum class VertexGraphType {
   REG,
-  SRC_REG,
+  //SRC_REG,
   LOGIC,
   START_POINT,
   END_POINT,
-  MID_POINT
+  MID_POINT,
+  ANY
 };
 
 enum class VertexDirection {
@@ -132,6 +133,7 @@ struct Vertex {
   std::string name;
   bool isParam;
   std::string paramValue;
+  bool isPublic;
   bool isTop;
   bool deleted;
   Vertex() {}
@@ -143,6 +145,7 @@ struct Vertex {
       location(location),
       isParam(false),
       isTop(false),
+      isPublic(false),
       deleted(false) {}
   /// Var vertex.
   Vertex(VertexAstType type,
@@ -151,7 +154,8 @@ struct Vertex {
          std::shared_ptr<DType> dtype,
          const std::string &name,
          bool isParam,
-         const std::string &paramValue) :
+         const std::string &paramValue,
+         bool isPublic) :
       astType(type),
       direction(direction),
       location(location),
@@ -160,14 +164,20 @@ struct Vertex {
       isParam(isParam),
       paramValue(paramValue),
       isTop(determineIsTop(name)),
-      deleted(false) {
-
-  }
+      isPublic(isPublic),
+      deleted(false) {}
+  /// A Vertex is in the 'top' scope when has one or two hierarchical components.
+  /// module.name or name is top level, but module.submodule.name is not.
   static bool determineIsTop(const std::string &name) {
-    // module.name or name is top level, but module.submodule.name is not.
     std::vector<std::string> tokens;
     boost::split(tokens, name, boost::is_any_of("."));
     return tokens.size() < 3;
+  }
+  /// Given a hierarchical name a.b.c, return the last component c.
+  std::string getBasename() const {
+    std::vector<std::string> tokens;
+    boost::split(tokens, name, boost::is_any_of("."));
+    return tokens.back();
   }
   /// Less than comparison
   bool compareLessThan(const Vertex &b) const {
@@ -229,6 +239,13 @@ struct Vertex {
   inline bool isReg() const {
     return !deleted &&
            astType == VertexAstType::REG;
+  }
+  inline bool isPort() const {
+    return !deleted &&
+           isTop &&
+           (direction == VertexDirection::INPUT ||
+            direction == VertexDirection::OUTPUT ||
+            direction == VertexDirection::INOUT);
   }
   inline bool isStartPoint() const {
     return !deleted &&

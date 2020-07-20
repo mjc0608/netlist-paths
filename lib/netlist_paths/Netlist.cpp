@@ -170,6 +170,7 @@ void Netlist::dumpDotFile(const std::string &outputFilename) const {
 /// Lookup a vertex using a regex pattern and function specifying a type.
 VertexDesc Netlist::getVertexDesc(const std::string &name,
                                   VertexGraphType graphType) const {
+  // TODO: add an option to disable regex matching.
   // FIXME: create a list of candidate vertices, rather than iterating all vertices.
   auto nameRegexStr(name);
   // Ignoring '/' (when supplying a heirarchical ref).
@@ -178,10 +179,9 @@ VertexDesc Netlist::getVertexDesc(const std::string &name,
   std::replace(nameRegexStr.begin(), nameRegexStr.end(), '/', '.');
   std::regex nameRegex(nameRegexStr);
   BGL_FORALL_VERTICES(v, graph, Graph) {
-    if (graph[v].isGraphType(graphType)) {
-      if (std::regex_search(graph[v].name, nameRegex)) {
-        return v;
-      }
+    if (((graphType == VertexGraphType::ANY) ? true : graph[v].isGraphType(graphType)) &&
+        std::regex_search(graph[v].name, nameRegex)) {
+      return v;
     }
   }
   return nullVertex();

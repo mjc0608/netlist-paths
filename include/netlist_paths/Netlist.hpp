@@ -22,8 +22,6 @@ class Netlist {
 private:
   Graph graph;
 
-  VertexDesc getVertexDesc(const std::string &name,
-                           VertexGraphType graphType) const;
   void dumpPath(const Path &path) const;
   Path determinePath(ParentMap &parentMap,
                      Path path,
@@ -47,8 +45,10 @@ public:
                           std::shared_ptr<DType> dtype,
                           const std::string &name,
                           bool isParam,
-                          const std::string &paramValue) {
-    auto vertex = Vertex(type, direction, location, dtype, name, isParam, paramValue);
+                          const std::string &paramValue,
+                          bool isPublic) {
+    auto vertex = Vertex(type, direction, location, dtype, name, isParam,
+                         paramValue, isPublic);
     return boost::add_vertex(vertex, graph);
   }
   void addEdge(VertexDesc src, VertexDesc dst) {
@@ -66,6 +66,8 @@ public:
   void checkGraph() const;
   void dumpDotFile(const std::string &outputFilename) const;
   std::vector<VertexDesc> getAllVertices() const;
+  VertexDesc getVertexDesc(const std::string &name,
+                           VertexGraphType graphType) const;
   VertexDesc getStartVertex(const std::string &name) const {
     return getVertexDesc(name, VertexGraphType::START_POINT);
   }

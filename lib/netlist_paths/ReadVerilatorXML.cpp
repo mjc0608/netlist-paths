@@ -165,15 +165,29 @@ void ReadVerilatorXML::newVar(XMLNode *node) {
     isParam = true;
     paramValue = node->first_node()->first_attribute("name")->value();
   }
+  auto isPublic = node->first_attribute("public") != nullptr;
   auto vertex = netlist.addVarVertex(VertexAstType::VAR,
                                      direction,
                                      location,
                                      dtypeMappings[dtypeID],
                                      name,
                                      isParam,
-                                     paramValue);
+                                     paramValue,
+                                     isPublic);
+  auto origName = node->first_attribute("origName")->value();
   vars.push_back(std::make_unique<VarNode>(name, vertex));
   DEBUG(std::cout << "Add var '" << name << "' to scope\n");
+  // Add edges between public/top-level vars and their internal instances
+  // eg i_clk and <module>.i_clk (to work around the flattened representation
+  // of the netlist.
+  auto publicVertex = netlist.getVertexDesc(origName, VertexGraphType::ANY);
+  if (publicVertex != netlist.nullVertex()) {
+    netlist.addEdge(publicVertex, vertex);
+    netlist.addEdge(vertex, publicVertex);
+    DEBUG(std::cout << "Edge to/from original var "
+                    << netlist.getVertex(publicVertex).toString() << " to "
+                    << netlist.getVertex(vertex).toString() << "\n");
+  }
 }
 
 void ReadVerilatorXML::newStatement(XMLNode *node, VertexAstType vertexType) {
